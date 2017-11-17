@@ -1,0 +1,35 @@
+{
+  "machine": [
+   {
+	  "name": "machine-A",
+	  "latitude": 50.759,
+	  "longitude": 7.45568
+   },
+   {
+     "name": "machine-B",
+     "latitude": 40.45712,
+     "longitude": -78.254
+   },
+   {
+     "name": "machine-C",
+     "latitude": 53.374641,
+     "longitude": -6.522470
+   }],
+  "switch": [
+    {
+      "name": "switch-K",
+      "latitude": -20.78,
+      "longitude": 130.5644
+    },
+    {
+      "name": "switch-E",
+      "latitude": 35.45,
+      "longitude": 134.84
+    },
+    {
+      "name": "switch-V",
+      "latitude": -3.2,
+      "longitude": -40
+    }
+  ]
+}

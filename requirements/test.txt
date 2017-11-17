@@ -1,0 +1,7 @@
+-r base.txt
+coverage==3.6
+nose
+mock
+flake8
+readme_renderer
+check-manifest

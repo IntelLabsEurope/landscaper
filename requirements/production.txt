@@ -1,0 +1,8 @@
+-r base.txt
+keystoneauth1==2.18
+python-cinderclient==1.11.0
+python-heatclient==1.8.0
+python-keystoneclient==3.10.0
+python-neutronclient==6.1.0
+python-novaclient==7.1.0
+gunicorn==19.7.1

@@ -1,0 +1,21 @@
+---
+
+switch_one:
+  name: First switch
+  bandwidth: 40Gb
+  role: 
+    - storage
+    - data
+  connected-devices:
+    - 33-FE-E1-0E-B3-2E
+    - C2-5D-77-B5-E9-63
+switch_two:
+  name: Second switch
+  bandwidth: 1Gb
+  role: 
+    - management
+    - exterior
+  connected-devices:
+    - A7-C2-09-70-78-B3
+
+...

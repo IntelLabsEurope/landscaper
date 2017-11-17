@@ -1,0 +1,10 @@
+---
+
+network_switch:
+  name: Network Switch
+  bandwidth: 40Gb
+  roles:
+    - management
+  connected-devices:
+    - 7B:A6:8C:E5:E8:85
+    - AC:10:94:D3:65:F9

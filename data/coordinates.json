@@ -1,0 +1,14 @@
+{
+  "machine": [
+   {
+	  "name": "machine-A",
+	  "latitude": 52.972965,
+	  "longitude": -9.430630
+   },
+   {
+     "name": "machine-B",
+     "latitude": 53.694922,
+	 "longitude": -6.475492
+   }
+  ]
+}
