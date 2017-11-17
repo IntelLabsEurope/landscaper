@@ -1,12 +1,9 @@
 env/
-data/*.xml
-data/*.txt
 docs/*
 /cover
 /logs
 kdev/
 .idea/
-tests/stressfiles/
 *~
 *.pyc
 *.out
