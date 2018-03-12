@@ -153,7 +153,7 @@ class TestApplication(unittest.TestCase):
 
     @mock.patch("landscaper.web.application.time")
     @mock.patch("landscaper.web.application.LANDSCAPE")
-    def test_get_node_by_props_success(self, lm, mck_time):
+    def test_get_node_by_props_success(self, mlm, mck_time):
         """
         Test the success conditions for get_node_by_properties.
         """
@@ -161,15 +161,15 @@ class TestApplication(unittest.TestCase):
         params = [("layer", "virtual", "="), ("category", "compute"),
                   ("vcpu", 5, ">")]
         url = "{}?properties={}".format(base_url, params)
-        time_st = 45
+        time_s = 45
 
         # Mock Graph.
         graph = '{"graph": "name"}'
         mock_graph = MagicMock(return_value=graph)
-        lm.graph_db.get_node_by_properties_web = mock_graph
+        mlm.graph_db.get_node_by_properties_web = mock_graph
 
         # Mock time
-        mck_time.time = MagicMock(return_value=time_st)
+        mck_time.time = MagicMock(return_value=time_s)
 
         # Call the application.
         response = self.app.get(url)
@@ -177,9 +177,9 @@ class TestApplication(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_data(), graph)
         self.assertEqual(response.mimetype, "application/json")
-        lm.graph_db.get_node_by_properties_web.assert_called_once_with(params,
-                                                                       time_st,
-                                                                       0)
+        mlm.graph_db.get_node_by_properties_web.assert_called_once_with(params,
+                                                                        time_s,
+                                                                        0)
 
     @mock.patch("landscaper.web.application.LANDSCAPE")
     def test_get_node_by_props_failure(self, mock_lm):

@@ -14,7 +14,6 @@
 """"
 Integration tests for get_node_by_uuid_web and get_node_by_properties_web
 """
-import os
 import json
 import logging
 import unittest

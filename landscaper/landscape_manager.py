@@ -17,7 +17,6 @@ landscaper.
 """
 import importlib
 import os
-import time
 
 from landscaper import common
 from landscaper import paths
@@ -116,11 +115,11 @@ class LandscapeManager(object):
         """
         if self.listeners:
             self.state = "listening"
-            for event_lister in self.listeners:
-                event_lister.start()
-            while True:
-                # Todo: look into joining the threads. Issue #45
-                time.sleep(1)
+            for event_listener in self.listeners:
+                event_listener.start()
+
+            for listener in self.listeners:
+                listener.join()
 
     @staticmethod
     def _load_plugins(plugin_names, package, plugin_dir, plugin_params=None):

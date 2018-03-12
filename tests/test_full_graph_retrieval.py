@@ -15,7 +15,6 @@
 Integration tests for the get graph feature.
 """
 import logging
-import os
 import unittest
 
 from landscaper import landscape_manager

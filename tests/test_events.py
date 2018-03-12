@@ -32,6 +32,7 @@ from landscaper.event_listener import os_rabbitmq_listener
 
 from tests.test_utils import utils
 
+# pylint: disable=W0212
 LOG = logging.getLogger(__name__)
 
 

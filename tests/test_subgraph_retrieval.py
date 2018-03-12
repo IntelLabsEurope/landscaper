@@ -16,7 +16,6 @@ Integration tests for the get subgraph feature.
 """
 import json
 import logging
-import os
 import unittest
 
 from networkx.readwrite import json_graph
