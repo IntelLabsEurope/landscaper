@@ -15,6 +15,7 @@
 Configuration class for the landscaper.
 """
 import ConfigParser
+from collections import namedtuple
 
 from landscaper import paths
 from landscaper.common import LOG
@@ -130,6 +131,8 @@ class ConfigurationManager(object):
         """
         RabbitMQ configuration information.
         """
+        rabbitMQ = namedtuple('rabbitMQ', 'username password host port topic'
+                                          ' queue exchanges')
         username = self.get_variable('rabbitmq', 'rb_name')
         password = self.get_variable('rabbitmq', 'rb_password')
         host = self.get_variable('rabbitmq', 'rb_host')
@@ -137,7 +140,8 @@ class ConfigurationManager(object):
         topic = self.get_variable('rabbitmq', 'topic')
         queue = self.get_variable('rabbitmq', 'notification_queue')
         exchanges = self.get_variable('rabbitmq', 'exchanges').split(",")
-        return (username, password, host, port, topic, queue, exchanges)
+        return rabbitMQ(username, password, host, port, topic, queue,
+                        exchanges)
 
     def get_collectors(self):
         """

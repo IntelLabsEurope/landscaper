@@ -14,15 +14,15 @@
 """
 Openstack rabbitMQ listener.
 """
-import time
+from kombu import Connection, Queue, Exchange
+from kombu.mixins import ConsumerMixin
+from kombu import exceptions
 
-from kombu import Connection, Exchange, Queue, Consumer
-from landscaper.common import LOG
 from landscaper.event_listener import base
+from landscaper.common import LOG
 
-# Events which this listener accepts.
 EVENTS = [
-    'compute.instance.create.start',
+    'compute.instance.create.start', 'orchestration.stack.create.start',
     'compute.instance.create.end', 'compute.instance.resize.revert.end',
     'compute.instance.finish_resize.end', 'compute.instance.rebuild.end',
     'compute.instance.update', 'compute.instance.exists',
@@ -35,10 +35,10 @@ EVENTS = [
     'port.delete.end', 'router.interface.delete', 'volume.create.end',
     'volume.update.end', 'volume.resize.end', 'volume.attach.end',
     'volume.detach.end', 'volume.delete.end', 'volume.attach.start',
-    'compute.instance.shutdown.end', 'compute.instance.volume.attach',
-    'orchestration.stack.create.start']
+    'compute.instance.shutdown.end', 'compute.instance.volume.attach']
 
 CONFIG_SECTION = 'rabbitmq'
+CONNECTION_RETRIES = 10         # Number of retries after a broken connection.
 
 
 class OSRabbitMQListener(base.EventListener):
@@ -51,59 +51,45 @@ class OSRabbitMQListener(base.EventListener):
 
         # Grab rabbit configuration data.
         conf.add_section(CONFIG_SECTION)
-        rabbit_conf = conf.get_rabbitmq_info()
-        self.topic = rabbit_conf[4]
-        self.queue = rabbit_conf[5]
-        self.exchanges = rabbit_conf[6]
-        self.connection_string = self._get_connection_string(rabbit_conf)
-
-    @staticmethod
-    def create_exchange(exchange_name):
-        """
-        Creates exchange for amqp notifications
-        """
-        return Exchange(exchange_name, type='topic', durable=True)
-
-    @staticmethod
-    def create_queue(topic_name, exchange):
-        """
-        Creates Queue for amqp notifications
-        """
-        return Queue(topic_name, exchange=exchange,
-                     durable=True, routing_key=topic_name)
+        self.rbq = conf.get_rabbitmq_info()
+        self.connection_string = self._get_connection_string()
 
     def listen_for_events(self):
         """
-        Listen for events coming from the openstack notification queue.
+        Entry point for the child event listener.
         """
-        self._consume_notifications()
-        time.sleep(5)
-
-    @staticmethod
-    def _create_exchange(topic_name):
-        return Exchange(topic_name, type='topic', durable=True)
-
-    @staticmethod
-    def _create_queue(topic, exchange):
-        return Queue(topic, exchange=exchange, durable=True, routing_key=topic)
-
-    def _consume_notifications(self):
-        """
-        Consume notification from Openstack notification queue.
-        """
-        LOG.info("Attempting to connect to address: %s",
-                 self.connection_string)
+        msg = "Connecting to Openstack message queue at address: %s."
         with Connection(self.connection_string) as conn:
-            consumer = Consumer(conn, callbacks=[self._cb_event])
-            for exchange_name in self.exchanges:
-                exchange = OSRabbitMQListener.create_exchange(exchange_name)
-                queue = OSRabbitMQListener.create_queue(self.topic, exchange)
-                consumer.add_queue(queue)
-            with consumer:
-                LOG.info("Connected to address: %s", self.connection_string)
-                while True:
-                    conn.drain_events()
-        return
+            consumer = OSMQueueConsumer(conn, self._queues(), self._cb_event)
+            try:
+                LOG.info(msg, self.connection_string)
+                consumer.run()
+            except exceptions.KombuError as exc:
+                LOG.error(exc, exc_info=1)
+
+    def _queues(self):
+        """
+        Build the listener queue and redirect exchange output to this queue.
+        :return: List of queues.
+        """
+        queues = []
+        for exchange_name in self.rbq.exchanges:
+            exchange = Exchange(exchange_name, type='topic')
+            queue = Queue(self.rbq.queue, exchange, self.rbq.topic)
+            queues.append(queue)
+        return queues
+
+    def _get_connection_string(self):
+        """
+        Retrieves the rabbit MQ connection string.
+        :param rabbit_conf: Configuration Class.
+        :return: Connection string.
+        """
+        connection_string = "amqp://{}:{}@{}:{}/%2F".format(self.rbq.username,
+                                                            self.rbq.password,
+                                                            self.rbq.host,
+                                                            self.rbq.port)
+        return connection_string
 
     def _cb_event(self, body, message):
         """
@@ -119,15 +105,39 @@ class OSRabbitMQListener(base.EventListener):
         except TypeError:
             pass
 
-    @staticmethod
-    def _get_connection_string(rabbit_conf):
+
+class OSMQueueConsumer(ConsumerMixin):
+    """
+    Open stack message queue consumer.
+    """
+    def __init__(self, connection, queues, callback):
+        self.connection = connection
+        self.queues = queues
+        self.callback = callback
+        self.connect_max_retries = CONNECTION_RETRIES
+        self.retry_tracker = 0
+
+    def get_consumers(self, Consumer, channel):
+        return [Consumer(queues=self.queues, callbacks=[self.callback])]
+
+    def on_connection_error(self, exc, interval):
         """
-        Retrieves the rabbit MQ connection string.
-        :param rabbit_conf: Configuration Class.
-        :return: Connection string.
+        Method called when there is a connection problem.
+        :param exc: The connection exception.
+        :param interval: The interval until the next reconnect attempt is made.
         """
-        connection_string = "amqp://{}:{}@{}:{}/%2F".format(rabbit_conf[0],
-                                                            rabbit_conf[1],
-                                                            rabbit_conf[2],
-                                                            rabbit_conf[3])
-        return connection_string
+        super(OSMQueueConsumer, self).on_connection_error(exc, interval)
+        self.retry_tracker += 1
+        err_msg = "Broker connection error: %s. Attempting reconnect " \
+                  "(%s/%s) in %ss."
+        LOG.warning(err_msg, exc, self.retry_tracker, self.connect_max_retries,
+                    interval)
+
+    def on_connection_revived(self):
+        """
+        Method called when a connection to the broker is successfully made.
+        """
+        super(OSMQueueConsumer, self).on_connection_revived()
+        self.retry_tracker = 0
+        info_msg = "Connected to Openstack message queue at address: %s."
+        LOG.info(info_msg, self.connection.as_uri())
