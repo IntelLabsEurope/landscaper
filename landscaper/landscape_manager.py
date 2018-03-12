@@ -119,6 +119,7 @@ class LandscapeManager(object):
             for event_lister in self.listeners:
                 event_lister.start()
             while True:
+                # Todo: look into joining the threads. Issue #45
                 time.sleep(1)
 
     @staticmethod

@@ -189,7 +189,7 @@ class TestGetGraph(unittest.TestCase):
         node = "96449fb1-0143-4d61-9d84-0a2fd0aa30c1"
         node_structure = {"category": "network", "layer": "virtual",
                           "name": "96449fb1-0143-4d61-9d84-0a2fd0aa30c1",
-                          "ip": "10.1.22.169", "mac": "fa:16:3e:7c:5c:66",
+                          "ip": "10.2.32.169", "mac": "fa:16:3e:7c:5c:66",
                           "type": "vnic"}
         node_2 = "machine-A_eth23_0"
         node_structure_2 = {"category": "network", "layer": "physical",

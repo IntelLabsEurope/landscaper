@@ -53,6 +53,13 @@ class Neo4jGDB(base.GraphDB):
         self.graph_db_refreshed = None
         self.graph_db = self._get_db_connection()
 
+    def find(self, label, node_id):
+        node = self.graph_db.find_one(label, property_key="name",
+                                      property_value=node_id)
+        if node:
+            return True
+        return False
+
     def add_node(self, node_id, identity, state, timestmp):
         """
         Add a node to the Neo4j database, which involves adding the identity
