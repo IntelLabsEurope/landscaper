@@ -23,6 +23,7 @@ from landscaper import paths
 from landscaper import events_manager
 from landscaper.utilities import configuration
 
+
 CONFIGURATION_SECTION = 'general'
 
 

@@ -54,6 +54,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     def tearDown(self):
         utils.remove_test_config()
+        self.graph_db.delete_all()
         logging.disable(logging.NOTSET)
 
     @patch("landscaper.collector.heat_collector.openstack")
@@ -123,7 +124,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.nova_collector.openstack")
     @patch("landscaper.collector.nova_collector.time")
-    def _add_nova_instance(self, uuid, host, name, mck_time, _):
+    def _add_nova_instance(self, uuid, host, name, mck_time, mck_os):
         mck_time.time.return_value = "1502828001"
         nova_coll = nova_collector.NovaCollectorV2(self.graph_db,
                                                    self.conf_manager,
@@ -205,7 +206,7 @@ class TestNeutronEvents(unittest.TestCase):
     """
     Integration tests for neutron events.
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
 
     def setUp(self):
         conf_manager = configuration.ConfigurationManager()
@@ -226,11 +227,10 @@ class TestNeutronEvents(unittest.TestCase):
         # Set up landscaper classes.
         self.listener = os_rabbitmq_listener.OSRabbitMQListener(event_manager,
                                                                 conf_manager)
-        self.nova = nova_collector.NovaCollectorV2(self.graph_db, conf_manager,
-                                                   event_manager)
-        self.neutron = neutron_collector.NeutronCollectorV2(self.graph_db,
-                                                            conf_manager,
-                                                            event_manager)
+        nova_collector.NovaCollectorV2(self.graph_db, conf_manager,
+                                       event_manager)
+        neutron_collector.NeutronCollectorV2(self.graph_db, conf_manager,
+                                             event_manager)
         logging.disable(logging.ERROR)
 
     def tearDown(self):
@@ -241,13 +241,14 @@ class TestNeutronEvents(unittest.TestCase):
         """
         The vnic attaches to the network and the vm attaches to the vnic.
         """
-        vnic = 'e7992a77-d366-4c68-b490-eb26248f467c'
-        instance = '8cdce3d7-fb84-4f7a-9625-a433ca83d594'
+        nova_collector.SSH_TIMEOUT = 1
+        vnic = '26b65fc8-03be-41a6-9615-f1c123e0f78a'
+        instance = '7593155e-da6b-4b62-9d25-8196b7138f80'
         network = '598fd41d-5118-48e5-9b75-862ad070a1e3'
         machine = 'machine-B'
 
         # Launch the events against the database.
-        self._simulate_events('tests/data/events/add_1_stack.p')
+        _simulate_events(self.listener, 'tests/data/events/add_1_stack.p')
         vm_subgraph = self.graph_db.get_subgraph(instance, json_out=False)
 
         # Check that the vm is connecting properly.
@@ -261,14 +262,89 @@ class TestNeutronEvents(unittest.TestCase):
         self.assertEqual(len(vnic_successors), 1)
         self.assertTrue(network in vnic_successors)
 
-    def _simulate_events(self, event_file):
+
+class TestCinderEvents(unittest.TestCase):
+    """
+    Integration tests for testing the cinder events.
+    """
+    landscape_file = "tests/data/test_landscape_with_states.json"
+
+    def setUp(self):
+        # Initialise managers with test config..
+        utils.create_test_config()
+        conf = configuration.ConfigurationManager(utils.TEST_CONFIG_FILE)
+        event_m = events_manager.EventsManager()
+
+        # Set up the graph database.
+        self.graph_db = neo4j_db.Neo4jGDB(conf)
+        self.graph_db.delete_all()
+        self.graph_db.load_test_landscape(self.landscape_file)
+
+        # Patch up nova and neutron openstack.
+        nova_patch = patch('landscaper.collector.nova_collector.openstack')
+        cinder_patch = patch(
+            'landscaper.collector.cinder_collector.openstack')
+        self.addCleanup(nova_patch.stop)
+        self.addCleanup(cinder_patch.stop)
+        nova_patch.start()
+        cinder_patch.start()
+
+        # Set up landscaper classes.
+        self.listener = os_rabbitmq_listener.OSRabbitMQListener(event_m,
+                                                                conf)
+        nova_collector.NovaCollectorV2(self.graph_db, conf, event_m)
+        cinder_collector.CinderCollectorV2(self.graph_db, conf, event_m)
+        logging.disable(logging.ERROR)
+
+    def tearDown(self):
+        self.graph_db.delete_all()
+        logging.disable(logging.NOTSET)
+
+    def test_volume_attaches_to_vm(self):
         """
-        Simulates the events in the pickled file. THe timing of events is also
-        preserved. THe events are fired directly at the rabbit handler
-        callback.
-        :param event_file: The events to simulate.
+        Ensure that the volume is attached to the vm.
         """
-        events = pickle.load(open(event_file, 'rb'))
-        for delay, _, event_body in events:
-            self.listener._cb_event(event_body, mock.Mock())
-            time.sleep(delay)
+        volume = 'd79a82fa-a195-4086-beee-5c449c981708'
+        instance = '7593155e-da6b-4b62-9d25-8196b7138f80'
+
+        _simulate_events(self.listener, 'tests/data/events/add_1_stack.p')
+        vm_graph = self.graph_db.get_subgraph(instance, json_out=False)
+        vm_successors = vm_graph.successors(instance)
+
+        self.assertTrue(len(vm_successors), 2)
+        self.assertTrue('machine-B' in vm_successors)
+        self.assertTrue(volume in vm_successors)
+
+    def test_volume_deleted(self):
+        """
+        Check that the volume is deleted.
+        As the nova collector is instantiated vm deletions occur also.
+        """
+        volume = 'd79a82fa-a195-4086-beee-5c449c981708'
+        instance = '7593155e-da6b-4b62-9d25-8196b7138f80'
+
+        # Add the components
+        _simulate_events(self.listener, 'tests/data/events/add_1_stack.p')
+        before_delete = self.graph_db.get_graph(json_out=False)
+
+        # Remove the components
+        _simulate_events(self.listener, 'tests/data/events/delete_1_stack.p')
+        after_delete = self.graph_db.get_graph(json_out=False)
+
+        # Compare
+        diff = utils.compare_graph(before_delete, after_delete)
+        self.assertItemsEqual([volume, instance], diff['removed'])
+
+
+def _simulate_events(listener, event_file):
+    """
+    Simulates the events in the pickled file. THe timing of events is also
+    preserved. THe events are fired directly at the rabbit handler
+    callback.
+    :param listener: An event listener.
+    :param event_file: The events to simulate.
+    """
+    events = pickle.load(open(event_file, 'rb'))
+    for delay, _, event_body in events:
+        # print "{:40} -- {:.5f}".format(event, delay)
+        listener._cb_event(event_body, mock.Mock())

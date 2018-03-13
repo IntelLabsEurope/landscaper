@@ -28,7 +28,7 @@ class TestGetNodeByUUID(unittest.TestCase):
     """
     Integration Tests for get_node_by_uuid_web
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
 
     @classmethod
     def setUpClass(cls):
@@ -46,6 +46,9 @@ class TestGetNodeByUUID(unittest.TestCase):
         self.graph_db.delete_all()
         self.graph_db.load_test_landscape(self.landscape_file)
 
+    def tearDown(self):
+        self.graph_db.delete_all()
+
     def test_node_structure(self):
         """
         Ensure the node structure is correct.
@@ -53,8 +56,9 @@ class TestGetNodeByUUID(unittest.TestCase):
         node = "96449fb1-0143-4d61-9d84-0a2fd0aa30c1"
         node_structure = {"category": "network", "layer": "virtual",
                           "name": "96449fb1-0143-4d61-9d84-0a2fd0aa30c1",
-                          "ip": "10.2.32.169", "mac": "fa:16:3e:7c:5c:66",
-                          "type": "vnic"}
+                          "type": "vnic",
+                          "attributes": {"ip": "10.2.32.169",
+                                         "mac": "fa:16:3e:7c:5c:66"}}
         graph_serialised = self.graph_db.get_node_by_uuid_web(node)
         graph = json_graph.node_link_graph(json.loads(graph_serialised),
                                            directed=True)
@@ -62,16 +66,17 @@ class TestGetNodeByUUID(unittest.TestCase):
         self.assertEqual(graph.node[node], node_structure)
 
     def test_structure_renamed(self):
-        """"
+        """
         Ensure the node structure is correct where attributes have been
         renamed.
         """
         node = "machine-A_eth23_0"
         node_structure = {"category": "network", "layer": "physical",
-                          "name": "machine-A_eth23_0", "osdev_type": "2",
-                          "allocation": "machine-A", "type": "osdev_network",
-                          "address": "54:6a:00:59:d6:33",
-                          "osdev_network-name": "eth23"}
+                          "name": "machine-A_eth23_0", "type": "osdev_network",
+                          "attributes": {"osdev_type": "2", "name": "eth23",
+                                         "allocation": "machine-A",
+                                         "address": "54:6a:00:59:d6:33"}}
+
         graph = _deserialize(self.graph_db.get_node_by_uuid_web(node))
         self.assertEqual(len(graph.node), 1)
         self.assertEqual(graph.node[node], node_structure)
@@ -81,7 +86,7 @@ class TestGetNodeByProperties(unittest.TestCase):
     """
     Integration Tests for get_node_by_properties_web
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
 
     @classmethod
     def setUpClass(cls):
@@ -99,11 +104,14 @@ class TestGetNodeByProperties(unittest.TestCase):
         self.graph_db.delete_all()
         self.graph_db.load_test_landscape(self.landscape_file)
 
+    def tearDown(self):
+        self.graph_db.delete_all()
+
     def test_all_stacks(self):
         """
         Check that we get back the correct number of stacks that survived.
         """
-        prop = ("type", "stack")
+        prop = [("type", "stack")]
         graph = _deserialize(self.graph_db.get_node_by_properties_web(prop))
         self.assertEqual(len(graph.node), 2)
 
@@ -112,10 +120,11 @@ class TestGetNodeByProperties(unittest.TestCase):
         Check that the node structure is ok.
         """
         node_structure = {"category": "compute", "layer": "service",
-                          "name": "stack-1", "stack_name": "yew",
-                          "template": "<>", "type": "stack"}
+                          "name": "stack-1", "type": "stack",
+                          "attributes": {"stack_name": "yew",
+                                         "template": "<>"}}
         node = "stack-1"
-        prop = ("name", node)
+        prop = [("name", node)]
         graph = _deserialize(self.graph_db.get_node_by_properties_web(prop))
 
         self.assertEqual(len(graph), 1)
@@ -127,11 +136,12 @@ class TestGetNodeByProperties(unittest.TestCase):
         """
         node = "machine-A_eth23_0"
         node_structure = {"category": "network", "layer": "physical",
-                          "name": "machine-A_eth23_0", "osdev_type": "2",
-                          "allocation": "machine-A", "type": "osdev_network",
-                          "address": "54:6a:00:59:d6:33",
-                          "osdev_network-name": "eth23"}
-        prop = ("name", node)
+                          "name": "machine-A_eth23_0",
+                          "type": "osdev_network",
+                          "attributes": {"osdev_type": "2", "name": "eth23",
+                                         "allocation": "machine-A",
+                                         "address": "54:6a:00:59:d6:33"}}
+        prop = [("name", node)]
         graph = _deserialize(self.graph_db.get_node_by_properties_web(prop))
         self.assertEqual(len(graph), 1)
         self.assertEqual(graph.node[node], node_structure)

@@ -190,8 +190,8 @@ class NeutronCollectorV2(base.Collector):
         net_node = self._get_net_node(net_id)
 
         if net_node is not None:
-            subnet_node = self.graph_db.update_node(subnet_id, identity,
-                                                    state, timestamp)
+            subnet_node, _ = self.graph_db.update_node(subnet_id, timestamp,
+                                                    state)
             self.graph_db.update_edge(subnet_node, net_node,
                                       timestamp, "REQUIRES")
 
@@ -215,7 +215,7 @@ class NeutronCollectorV2(base.Collector):
         Update existing network node in the database.
         """
         identity, state = self._create_network_nodes(name)
-        self.graph_db.update_node(network_id, identity, state, timestamp)
+        self.graph_db.update_node(network_id, timestamp, state)
 
     def _delete_network(self, network_id, timestamp):
         """
@@ -246,7 +246,7 @@ class NeutronCollectorV2(base.Collector):
         """
         identity, state = self._create_port_nodes(mac, ip_add)
         instance = self._get_device_node(device_id)
-        port = self.graph_db.update_node(port_id, identity, state, timestmp)
+        port, _ = self.graph_db.update_node(port_id, timestmp, state)
 
         if port is not None:
             if instance is not None:

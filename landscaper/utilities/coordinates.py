@@ -15,7 +15,43 @@
 Retrieval of coordinates.
 """
 import json
+
 from landscaper import paths
+
+
+class Geo(object):
+    """
+    Extracts feature collection
+    """
+    @staticmethod
+    def extract_geo(json_str):
+        """
+        Build feature collection object from a networkx json graph.
+        :param json_str: networkx json graph
+        :return: GeoJSON feature collection
+        """
+        json_dict = json.loads(json_str)
+        features = []
+        for node in json_dict['nodes']:
+            # test for attributes first
+            geo = {}
+            if 'attributes' in node:
+                if 'geo' in node['attributes']:
+                    geo = node['attributes']['geo']
+            else:
+                if 'geo' in node:
+                    geo = node['geo']
+
+            if geo:
+                name = node['name']
+                feature = {"type": "Feature",
+                           "geometry": geo,
+                           "properties": {"name": name}}
+                features.append(feature)
+
+        feat_collection = {"type": "FeatureCollection", "features": features}
+
+        return json.dumps(feat_collection)
 
 
 def component_coordinates(component_name, component_type):

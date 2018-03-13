@@ -114,7 +114,7 @@ class HeatCollectorV1(base.Collector):
         """
         identity, state = self._create_heat_stack_nodes(stack)
         uuid = stack.id
-        stack_node = self.graph_db.update_node(uuid, identity, state, timestmp)
+        stack_node, _ = self.graph_db.update_node(uuid, state, timestmp)
         if stack_node is not None:
             resources = self._get_resources(uuid)
             for resource in resources:

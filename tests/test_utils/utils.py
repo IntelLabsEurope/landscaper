@@ -17,6 +17,9 @@ Utilities used for testing.
 import collections
 import ConfigParser
 import os
+import random
+import string
+import os
 
 EdgeChange = collections.namedtuple('EdgeChange', 'edge original changed')
 NodeChange = collections.namedtuple('NodeChange', 'node original changed')
@@ -128,6 +131,14 @@ def create_test_config():
                              "user": username, "password": password},
                    "general": {"graph_db": "Neo4jGDB",
                                "event_listeners": "", "collectors": ""}}
+
+    # Add RabbitMQ listener configs
+    test_config['rabbitmq'] = {}
+    conf_vars = ['rb_name', 'rb_password', 'rb_host', 'rb_port', 'topic',
+                 'notification_queue', 'exchanges']
+    for conf_var in conf_vars:
+        test_config['rabbitmq'][conf_var] = random_string(8)
+
     write_config(test_config, TEST_CONFIG_FILE)
 
 
@@ -137,3 +148,11 @@ def remove_test_config():
     """
     if os.path.isfile(TEST_CONFIG_FILE):
         os.remove(TEST_CONFIG_FILE)
+
+
+def random_string(length):
+    """
+    Generate a random string.
+    :param length: Length of the random string
+    """
+    return ''.join(random.choice(string.ascii_letters) for _ in range(length))

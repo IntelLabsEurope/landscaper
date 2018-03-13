@@ -144,8 +144,8 @@ class NovaCollectorV2(base.Collector):
         :param name: Instance name.
         :param timestamp: Epoch timestamp.
         """
-        identity, state = self._create_instance_nodes(vcpus, mem, name)
-        self.graph_db.update_node(uuid, identity, state, timestamp)
+        _, state = self._create_instance_nodes(vcpus, mem, name)
+        self.graph_db.update_node(uuid, timestamp, state)
 
     def _delete_instance(self, uuid, timestamp):
         """

@@ -112,7 +112,7 @@ class CinderCollectorV2(base.Collector):
         Updates the volume by changing the state node.
         """
         identy, state = self._create_volume_nodes(size)
-        volume_node = self.graph_db.update_node(uuid, identy, state, timestamp)
+        volume_node, _ = self.graph_db.update_node(uuid, timestamp, state)
         if volume_node is not None:
             machine = self._get_machine_node(hostname)
             if machine is not None:
