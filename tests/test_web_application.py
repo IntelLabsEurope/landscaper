@@ -429,3 +429,69 @@ class TestPutGeolocationIntegration(unittest.TestCase):
             return graph.nodes(data=True)[0][1]
 
         return None
+
+
+class TestNodeFilteringREST(unittest.TestCase):
+    """
+    Test that the filtering arguments are being passed appropriately.
+    """
+
+    def setUp(self):
+        # Test flask calls.
+        self.app = application.APP.test_client()
+
+    @mock.patch("landscaper.web.application.util_graph")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_filter_nodes_graph_success(self, mck_ls, util_mck):
+        """
+        If given a filter nodes query parameter, check that it is set
+        correctly.
+        """
+        mck_ls.graph_db.get_graph.return_value = "graph"
+        mck_ls.graph_db.get_subgraph.return_value = "subgraph"
+
+        base_url = "/graph"
+        types = ['vm', 'machine']
+        url = "{}?filter-nodes={}".format(base_url, types)
+
+        self.app.get(url)
+
+        util_mck.filter_nodes.assert_called_once_with("graph", types, True)
+
+        util_mck.reset_mock()
+
+        base_url_sg = "/subgraph/lola"
+        typ_sg = ['osdev_network']
+        url_sg = "{}?filter-nodes={}".format(base_url_sg, typ_sg)
+
+        self.app.get(url_sg)
+
+        util_mck.filter_nodes.assert_called_once_with("subgraph", typ_sg, True)
+
+    @mock.patch("landscaper.web.application.util_graph")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_filter_nodes_failure(self, _, util_mck):
+        """
+        Ensure that when no filter nodes are present, that filtering is not
+        called.
+        """
+        self.app.get("/graph")
+        self.app.get("/subgraph")
+        self.assertFalse(util_mck.filter_nodes.called)
+
+    @mock.patch("landscaper.web.application.util_graph")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_filter_these(self, mck_ls, util_mck):
+        """
+        Ensure that if filter these is set that it is reflected in the call to
+        filter nodes.
+        """
+        mck_ls.graph_db.get_graph.return_value = "graph"
+        mck_ls.graph_db.get_subgraph.return_value = "subgraph"
+
+        self.app.get("/graph?filter-these=False&filter-nodes=['vnic']")
+        self.app.get("/subgraph/node?filter-these=False&filter-nodes=['vm']")
+
+        calls = [mock.call('graph', ['vnic'], False),
+                 mock.call('subgraph', ['vm'], False)]
+        util_mck.filter_nodes.assert_has_calls(calls)

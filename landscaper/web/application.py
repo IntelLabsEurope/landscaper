@@ -27,6 +27,7 @@ from flask_cors import CORS
 from landscaper.common import LOG
 from landscaper import landscape_manager as lm
 from landscaper.utilities.coordinates import Geo
+from landscaper.utilities import graph as util_graph
 
 
 APP = flask.Flask(__name__)
@@ -43,7 +44,17 @@ def get_graph():
     """
     LOG.info("Retrieving Landscape with url : %s", request.url)
     geo = _bool(request.args.get("geo", False))
+
+    # Filter arguments
+    filter_these = _bool(request.args.get("filter-these", True))
+    filter_nodes = request.args.get("filter-nodes", [])
+
+    # Fetch the graph
     graph = LANDSCAPE.graph_db.get_graph()
+
+    if filter_nodes:
+        filter_nodes = ast.literal_eval(filter_nodes)
+        graph = util_graph.filter_nodes(graph, filter_nodes, filter_these)
     if geo:
         graph = Geo.extract_geo(graph)
     return Response(graph, mimetype=MIME)
@@ -58,13 +69,21 @@ def get_subgraph(node_id):
     timestamp = request.args.get("timestamp")
     time_frame = request.args.get("timeframe", 0)
     geo = _bool(request.args.get("geo", False))
+
+    # filter arguments.
+    filter_these = _bool(request.args.get("filter-these", True))
+    filter_nodes = request.args.get("filter-nodes", [])
+
+    # Fetch the subgraph.
     subgraph = LANDSCAPE.graph_db.get_subgraph(node_id, timestmp=timestamp,
                                                timeframe=time_frame)
     if not subgraph:
         err_msg = "Node with ID '{}', not in the landscape.".format(node_id)
         LOG.error(err_msg)
         abort(400, err_msg)
-
+    if filter_nodes:
+        filter_nodes = ast.literal_eval(filter_nodes)
+        subgraph = util_graph.filter_nodes(subgraph, filter_nodes, filter_these)
     if geo:
         subgraph = Geo.extract_geo(subgraph)
 
