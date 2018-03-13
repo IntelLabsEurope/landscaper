@@ -95,8 +95,7 @@ class HWLocCollector(base.Collector):
         :param graph: The graph containing the node.
         :param node: THe id of the node.
         """
-        node_type = graph.node[node]["type"]
-        coords = coordinates.component_coordinates(node, node_type)
+        coords = coordinates.component_coordinates(node)
         graph.node[node]["attributes"]["coordinates"] = coords
 
     def _get_hwloc(self, machine):

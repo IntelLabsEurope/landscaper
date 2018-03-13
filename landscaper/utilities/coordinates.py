@@ -54,25 +54,25 @@ class Geo(object):
         return json.dumps(feat_collection)
 
 
-def component_coordinates(component_name, component_type):
+def component_coordinates(component_name):
     """
     Returns the coordinates for a given component. The component is identified
-    by the component name and component type. The coordinates are retrieved
-    from a json file.
+    by the component name. The coordinates are retrieved
+    from a geoJSON file.
     :param component_name: Name/id of the component.
-    :param component_type: Type of component.
-    :return: Tuple containing the latitude and longitude in that order.
+    :return: A geoJSON geometry feature.
     """
-    coordinates = load_coordinates()
-    for component in coordinates.get(component_type, []):
-        if component["name"] == component_name:
-            return (component["latitude"], component["longitude"])
+    if component_name:
+        coordinates = load_coordinates()
+        for component in coordinates.get("features"):
+            if component["properties"]["name"] == component_name:
+                return component["geometry"]
     return None
 
 
 def load_coordinates():
     """
-    Load the coordinates from the coordinates json file.
+    Load the coordinates from the coordinates JSON file.
     :return: JSON containing all of the coordinates.
     """
     return json.load(open(paths.COORDINATES))
