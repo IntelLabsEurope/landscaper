@@ -199,7 +199,7 @@ class TestNodeUpdateIntegration(unittest.TestCase):
         self.graph_db.update_node(node_id, timestamp, state_attrs, extra_attrs)
 
         # Assertions
-        new_state = self._node_state_attributes(node_id)
+        new_state = self._pop_identity(self._node_state_attributes(node_id))
         expected_attrs = {"k": "kilometer", "l": "lights", "j": "juice"}
         self.assertNotEqual(old_state, expected_attrs)
         self.assertEqual(new_state, expected_attrs)
@@ -211,7 +211,19 @@ class TestNodeUpdateIntegration(unittest.TestCase):
         :return: a node from the landscape by id.
         """
         graph = self.graph_db.get_node_by_uuid_web(node_id, json_out=False)
-        return graph.nodes(data=True)[0][1]['attributes']
+        node_attrs = graph.nodes(data=True)[0][1]
+        return self._pop_identity(node_attrs)
+
+    @staticmethod
+    def _pop_identity(node_attributes):
+        """
+        removes the identity attributes.
+        """
+        trimmed_attributes = node_attributes.copy()
+        for attr_key, _ in node_attributes.iteritems():
+            if attr_key in ['name', 'type', 'layer', 'category']:
+                trimmed_attributes.pop(attr_key)
+        return trimmed_attributes
 
 
 class TestNodeUpdateUnit(unittest.TestCase):

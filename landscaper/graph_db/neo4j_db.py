@@ -26,6 +26,7 @@ from py2neo import Graph, Relationship, Node, NodeSelector, watch
 from landscaper.common import EOT_VALUE
 from landscaper.common import IDEN_PROPS
 from landscaper.common import LOG
+
 from landscaper.graph_db import base
 
 CONFIGURATION_SECTION = 'neo4j'
@@ -53,6 +54,12 @@ class Neo4jGDB(base.GraphDB):
         self.graph_db = self._get_db_connection()
 
     def find(self, label, node_id):
+        """
+        Returns true or false of whether the node with label exists.
+        :param label: node label name.
+        :param node_id: Node id.
+        :return: Returns true or false of whether the node with label exists.
+        """
         node = self.graph_db.find_one(label, property_key="name",
                                       property_value=node_id)
         if node:
@@ -251,11 +258,8 @@ class Neo4jGDB(base.GraphDB):
     def get_node_by_properties_web(self, properties, start=None, timeframe=0):
         """
         Return a list of nodes which match the given properties.
-        :param properties: A list of tuples with the key, value and operator.If
-        no operator is specified then the operator is '='. Oh and I am not
-        checking the order of these things, so get it right.
-        Example: [(k, v, o), (k, v)]
-        :return: A list of matching nodes
+        :param properties: A tuple with the key, value.  Example: (k, v)
+        :return: A graph of matching nodes
         """
         start = start or time.time()
         if not properties:
@@ -266,8 +270,8 @@ class Neo4jGDB(base.GraphDB):
         # TODO: Expand to search through attributes.
         # Build conditional query
         conditional_query = ""
-        property_key = properties[0][0]
-        property_value = properties[0][1]
+        property_key = properties[0]
+        property_value = properties[1]
         propery_operator = "="
         condition = '(n.{0}{1}"{2}" OR s.{0}{1}"{2}")'.format(property_key,
                                                               propery_operator,
@@ -279,7 +283,10 @@ class Neo4jGDB(base.GraphDB):
         graph = DiGraph()
         for id_node, state_node in self.graph_db.run(query):
             node = dict(id_node)
-            node["attributes"] = dict(state_node)
+            state_attributes = self._unique_attribute_names(IDEN_PROPS,
+                                                            dict(state_node),
+                                                            node["type"])
+            node.update(state_attributes)
             graph.add_node(node["name"], node)
         graph_json = json.dumps(json_graph.node_link_data(graph))
         return graph_json
@@ -311,16 +318,19 @@ class Neo4jGDB(base.GraphDB):
         if result:
             records = result[0]
             node = dict(records[0])
-            my_state = dict(records[1])
-            if 'geo' in my_state:
-                my_state['geo'] = json.loads(my_state['geo'])
-            node["attributes"] = dict(my_state)
+            state_attrs = dict(records[1])
+            if 'geo' in state_attrs:
+                state_attrs['geo'] = json.loads(state_attrs['geo'])
+
+            state_attributes = self._unique_attribute_names(IDEN_PROPS,
+                                                            state_attrs,
+                                                            node["type"])
+            node.update(state_attributes)
             graph.add_node(uuid, node)
 
             if json_out:
                 graph = json.dumps(json_graph.node_link_data(graph))
             return graph
-
         return None
 
     def get_node_by_uuid(self, node_id):
@@ -528,7 +538,6 @@ class Neo4jGDB(base.GraphDB):
                 rel_attr = dict(rel)
                 result.add_edge(src_uuid, dst_uuid, rel_attr, label=label)
 
-
         if result.node:
             if json_out:
                 js_gr = json_graph.node_link_data(result)
@@ -552,10 +561,13 @@ class Neo4jGDB(base.GraphDB):
             uuid = dict(idnode).get('name', None)
             if uuid is not None:
                 attr = dict(idnode)
-                my_state = dict(statenode)
-                if 'geo' in my_state:
-                    my_state['geo'] = json.loads(my_state['geo'])
-                attr["attributes"] = my_state
+                state_attrs = dict(statenode)
+                if 'geo' in state_attrs:
+                    state_attrs['geo'] = json.loads(state_attrs['geo'])
+                state_attributes = self._unique_attribute_names(IDEN_PROPS,
+                                                                state_attrs,
+                                                                attr["type"])
+                attr.update(state_attributes)
                 result.add_node(uuid, attr)
 
         all_edges = "match ()-[r]-() where type(r) <> 'STATE' and r.from <= " \
@@ -566,7 +578,6 @@ class Neo4jGDB(base.GraphDB):
             src_uuid = edge[0].start_node()["name"]
             dst_uuid = edge[0].end_node()["name"]
             result.add_edge(src_uuid, dst_uuid, rel_attr, label=edge[0].type())
-
 
         if json_out:
             js_gr = json_graph.node_link_data(result)

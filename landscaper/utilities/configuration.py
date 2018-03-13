@@ -131,7 +131,7 @@ class ConfigurationManager(object):
         """
         RabbitMQ configuration information.
         """
-        rabbitMQ = namedtuple('rabbitMQ', 'username password host port topic'
+        rabbitmq = namedtuple('rabbitMQ', 'username password host port topic'
                                           ' queue exchanges')
         username = self.get_variable('rabbitmq', 'rb_name')
         password = self.get_variable('rabbitmq', 'rb_password')
@@ -140,7 +140,7 @@ class ConfigurationManager(object):
         topic = self.get_variable('rabbitmq', 'topic')
         queue = self.get_variable('rabbitmq', 'notification_queue')
         exchanges = self.get_variable('rabbitmq', 'exchanges').split(",")
-        return rabbitMQ(username, password, host, port, topic, queue,
+        return rabbitmq(username, password, host, port, topic, queue,
                         exchanges)
 
     def get_collectors(self):

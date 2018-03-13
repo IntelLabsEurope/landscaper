@@ -42,7 +42,7 @@ def get_graph():
     Returns the full landscape graph as node-link json.
     """
     LOG.info("Retrieving Landscape with url : %s", request.url)
-    geo = _boolean(request.args.get("geo", False))
+    geo = _bool(request.args.get("geo", False))
     graph = LANDSCAPE.graph_db.get_graph()
     if geo:
         graph = Geo.extract_geo(graph)
@@ -57,7 +57,7 @@ def get_subgraph(node_id):
     LOG.info("Retrieving Subgraph with url %s", request.url)
     timestamp = request.args.get("timestamp")
     time_frame = request.args.get("timeframe", 0)
-    geo = _boolean(request.args.get("geo", False))
+    geo = _bool(request.args.get("geo", False))
     subgraph = LANDSCAPE.graph_db.get_subgraph(node_id, timestmp=timestamp,
                                                timeframe=time_frame)
     if not subgraph:
@@ -77,7 +77,7 @@ def get_node_by_uuid(node_id):
     Returns a networkx graph containing the node.
     """
     LOG.info("Retrieving node by uuid, with url %s", request.url)
-    geo = _boolean(request.args.get("geo", False))
+    geo = _bool(request.args.get("geo", False))
     graph = LANDSCAPE.graph_db.get_node_by_uuid_web(node_id)
 
     if not graph:
@@ -141,9 +141,9 @@ def put_geolocation():
     return Response(status=200, mimetype=MIME)
 
 
-def _boolean(value):
+def _bool(value):
     """
-    Determine if the bool value supplied can be interpreted as bool.
+    Determine if the value supplied can be interpreted as bool.
     :param value: boolean value
     :return: True / False
     """
@@ -152,13 +152,11 @@ def _boolean(value):
     if isinstance(value, bool):
         return value
 
-    # if the value is any other simple type.
     value = str(value).lower().strip()
-    if value in ('true', '1',):
+    if value in ['true', '1']:
         return True
-    if value in ('false', '0',):
+    if value in ['false', '0']:
         return False
-
     return False
 
 

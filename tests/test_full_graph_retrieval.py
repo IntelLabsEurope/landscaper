@@ -188,16 +188,14 @@ class TestGetGraph(unittest.TestCase):
         node = "96449fb1-0143-4d61-9d84-0a2fd0aa30c1"
         node_structure = {"category": "network", "layer": "virtual",
                           "name": "96449fb1-0143-4d61-9d84-0a2fd0aa30c1",
-                          "type": "vnic",
-                          "attributes": {"ip": "10.2.32.169",
-                                         "mac": "fa:16:3e:7c:5c:66",}}
+                          "ip": "10.2.32.169", "mac": "fa:16:3e:7c:5c:66",
+                          "type": "vnic"}
         node_2 = "machine-A_eth23_0"
         node_structure_2 = {"category": "network", "layer": "physical",
-                            "name": "machine-A_eth23_0",
-                            "type": "osdev_network",
-                            "attributes": {"osdev_type": "2", "name": "eth23",
-                                           "allocation": "machine-A",
-                                           "address": "54:6a:00:59:d6:33"}}
+                            "name": "machine-A_eth23_0", "osdev_type": "2",
+                            "allocation": "machine-A", "type": "osdev_network",
+                            "address": "54:6a:00:59:d6:33",
+                            "osdev_network-name": "eth23"}
 
         graph = self.graph_db.get_graph(json_out=False)
 
@@ -218,7 +216,7 @@ class TestGetGraph(unittest.TestCase):
         for node_id, node_data in graph.nodes(data=True):
             if node_data["type"] == node_type:
                 if attribute:
-                    graph_nodes.append(node_data['attributes'][attribute])
+                    graph_nodes.append(node_data[attribute])
                 else:
                     graph_nodes.append(node_id)
         return graph_nodes

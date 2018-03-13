@@ -77,8 +77,11 @@ class TestGeoJSONJson(unittest.TestCase):
         self.assertEquals(type(geo["features"]), list)
         self.assertEquals(len(geo["features"]), 2)
 
-    # tests that the regular graph method works without URL query parameter geo=True
-    def test_graph_without_feature_collection(self):
+    def test_without_feature_collection(self):
+        """
+        tests that the regular graph method works without URL query parameter
+        geo=True
+        """
         self.insert_nodes()
         base_url = "/graph"
         response = self.app.get("{}".format(base_url))
@@ -180,8 +183,8 @@ class TestBoolean(unittest.TestCase):
         """
         Test that the method can handle bool types.
         """
-        bool_true = application._boolean(True)
-        bool_false = application._boolean(False)
+        bool_true = application._bool(True)
+        bool_false = application._bool(False)
 
         self.assertIsInstance(bool_true, bool)
         self.assertIsInstance(bool_false, bool)
@@ -192,8 +195,8 @@ class TestBoolean(unittest.TestCase):
         """
         Test that one and zero are interpreted correctly.
         """
-        one = application._boolean(1)
-        zero = application._boolean(0)
+        one = application._bool(1)
+        zero = application._bool(0)
 
         self.assertIsInstance(one, bool)
         self.assertIsInstance(zero, bool)
@@ -204,19 +207,19 @@ class TestBoolean(unittest.TestCase):
         """
         Test that None is interpreted as false.
         """
-        self.assertFalse(application._boolean(None))
+        self.assertFalse(application._bool(None))
 
     def test_strings_success(self):
         """
         Test that various strings for success.
         """
         for str_truth_val in ['true', 'TRUE', ' True ', '1', '1 ']:
-            bool_true = application._boolean(str_truth_val)
+            bool_true = application._bool(str_truth_val)
             self.assertIsInstance(bool_true, bool)
             self.assertTrue(bool_true)
 
         for str_false_val in ['FALSE', 'false', ' False', '0', ' 0 ']:
-            bool_false = application._boolean(str_false_val)
+            bool_false = application._bool(str_false_val)
             self.assertIsInstance(bool_false, bool)
             self.assertFalse(bool_false)
 
@@ -225,7 +228,7 @@ class TestBoolean(unittest.TestCase):
         All bad strings.
         """
         for str_fail in ['123', 'Tr ue', '00', 'mario', '']:
-            bool_false = application._boolean(str_fail)
+            bool_false = application._bool(str_fail)
             self.assertIsInstance(bool_false, bool)
             self.assertFalse(bool_false)
 
@@ -233,7 +236,7 @@ class TestBoolean(unittest.TestCase):
         """
         Just some object
         """
-        self.assertFalse(application._boolean({0, 1, 2}))
+        self.assertFalse(application._bool({0, 1, 2}))
 
 
 class TestLargeGraphGeo(unittest.TestCase):
@@ -266,7 +269,7 @@ class TestLargeGraphGeo(unittest.TestCase):
         nodes[server] = {"type": "Polygon", "coordinates": [[[0, 0], [10, 10],
                                                              [10, 0], [0, 0]]]}
         for node_id, geometry in nodes.iteritems():
-            self.graph.node[node_id]['attributes']['geo'] = geometry
+            self.graph.node[node_id]['geo'] = geometry
 
         # mock graph return
         json_gr = json.dumps(json_graph.node_link_data(self.graph))

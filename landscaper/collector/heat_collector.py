@@ -112,7 +112,7 @@ class HeatCollectorV1(base.Collector):
         :param stack: Heat stack object.
         :param timestmp: timestamp.
         """
-        identity, state = self._create_heat_stack_nodes(stack)
+        _, state = self._create_heat_stack_nodes(stack)
         uuid = stack.id
         stack_node, _ = self.graph_db.update_node(uuid, state, timestmp)
         if stack_node is not None:

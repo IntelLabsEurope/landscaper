@@ -16,7 +16,6 @@ Utilities used for testing.
 """
 import collections
 import ConfigParser
-import os
 import random
 import string
 import os

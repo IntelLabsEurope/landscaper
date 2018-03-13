@@ -426,6 +426,6 @@ class TestPutGeolocationIntegration(unittest.TestCase):
         """
         graph = self.graph_db.get_node_by_uuid_web(node_id, json_out=False)
         if graph:
-            return graph.nodes(data=True)[0][1]['attributes']
+            return graph.nodes(data=True)[0][1]
 
         return None
