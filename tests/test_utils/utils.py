@@ -129,7 +129,8 @@ def create_test_config():
     test_config = {"neo4j": {"url": "http://localhost:7474/db/data",
                              "user": username, "password": password},
                    "general": {"graph_db": "Neo4jGDB",
-                               "event_listeners": "", "collectors": ""}}
+                               "event_listeners": "", "collectors": ""},
+                   "physical_layer" : {"machines" : "machine-A"}}
 
     # Add RabbitMQ listener configs
     test_config['rabbitmq'] = {}

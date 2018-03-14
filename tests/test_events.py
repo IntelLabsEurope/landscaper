@@ -241,7 +241,6 @@ class TestNeutronEvents(unittest.TestCase):
         """
         The vnic attaches to the network and the vm attaches to the vnic.
         """
-        nova_collector.SSH_TIMEOUT = 1
         vnic = '26b65fc8-03be-41a6-9615-f1c123e0f78a'
         instance = '7593155e-da6b-4b62-9d25-8196b7138f80'
         network = '598fd41d-5118-48e5-9b75-862ad070a1e3'

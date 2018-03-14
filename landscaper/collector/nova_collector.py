@@ -35,7 +35,6 @@ UPDATE_EVENTS = ['compute.instance.resize.revert.end',
                  'compute.instance.update']
 CREATED_EVENTS = ['compute.instance.create.end']
 
-
 class NovaCollectorV2(base.Collector):
     """
     Collector for Openstack nova V2. This collector requires physical host
@@ -55,7 +54,6 @@ class NovaCollectorV2(base.Collector):
         """
         LOG.info("Adding Nova components to the landscape.")
         now_ts = time.time()
-
         for instance in self.nova.servers.list():
             vcpus, mem, name, hostname = self._get_instance_info(instance)
             self._add_instance(instance.id, vcpus, mem, name, hostname, now_ts)
@@ -91,7 +89,7 @@ class NovaCollectorV2(base.Collector):
         elif event in DELETE_EVENTS:
             self._delete_instance(uuid, timestamp)
         elif event in UPDATE_EVENTS:
-            self._update_instance(uuid, vcpus, mem, name, hostname, timestamp)
+            self._update_instance(uuid, vcpus, mem, name, timestamp)
 
     def _can_add(self, parameters, default_value):
         # check that all parameters are filled, could be a partial update.
@@ -132,8 +130,8 @@ class NovaCollectorV2(base.Collector):
 
         # Creates the edge between the instance and the machine.
         if inst_node is not None and machine is not None:
-            self.graph_db.add_edge(inst_node, machine,
-                                   timestamp, "DEPLOYED_ON")
+            label = "DEPLOYED_ON"
+            self.graph_db.add_edge(inst_node, machine, timestamp, label)
 
     def _update_instance(self, uuid, vcpus, mem, name, timestamp):
         """
