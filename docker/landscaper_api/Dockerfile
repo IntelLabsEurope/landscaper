@@ -11,5 +11,3 @@ ENV PYTHONPATH=/landscaper
 WORKDIR landscaper/web
 RUN echo $PYTHONPATH
 CMD ["gunicorn", "-b", "0.0.0.0:9001", "-w", "2", "application:APP"]
-
-
