@@ -53,7 +53,7 @@ class HWLocCollector(base.Collector):
         Build the physical layer machines and constituent components and add to
         the graph database.
         """
-        LOG.info("Adding physical machines to the landscape.")
+        LOG.info("[PHYS] Adding physical machines to the landscape.")
         now_ts = time.time()
         for machine in self.conf_mgr.get_machines():
             self._add_physical_machine(machine, now_ts)

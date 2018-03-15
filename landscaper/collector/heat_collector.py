@@ -50,7 +50,7 @@ class HeatCollectorV1(base.Collector):
         stack's vms.
         """
 
-        LOG.info("Adding Heat components to the landscape.")
+        LOG.info("[HEAT] Adding Heat components to the landscape.")
         now_ts = time.time()
         for stack in self.heat.stacks.list():
             if stack.stack_status == 'CREATE_COMPLETE':

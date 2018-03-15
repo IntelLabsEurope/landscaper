@@ -72,7 +72,7 @@ def get_subgraph(node_id):
 
     # filter arguments.
     filter_these = _bool(request.args.get("filter-these", True))
-    filter_nodes = request.args.get("filter-nodes", [])
+    filter_node = request.args.get("filter-nodes", [])
 
     # Fetch the subgraph.
     subgraph = LANDSCAPE.graph_db.get_subgraph(node_id, timestmp=timestamp,
@@ -81,9 +81,9 @@ def get_subgraph(node_id):
         err_msg = "Node with ID '{}', not in the landscape.".format(node_id)
         LOG.error(err_msg)
         abort(400, err_msg)
-    if filter_nodes:
-        filter_nodes = ast.literal_eval(filter_nodes)
-        subgraph = util_graph.filter_nodes(subgraph, filter_nodes, filter_these)
+    if filter_node:
+        filter_node = ast.literal_eval(filter_node)
+        subgraph = util_graph.filter_nodes(subgraph, filter_node, filter_these)
     if geo:
         subgraph = Geo.extract_geo(subgraph)
 

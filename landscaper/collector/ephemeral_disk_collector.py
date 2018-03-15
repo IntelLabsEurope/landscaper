@@ -23,7 +23,7 @@ from paramiko import ssh_exception
 
 from landscaper.collector import base
 from landscaper.common import LOG
-from landscaper.utilities import openstack
+
 
 DISK_IDEN_ATTR = {'layer': 'virtual', 'type': 'disk', 'category': 'storage'}
 
@@ -34,6 +34,7 @@ CREATED_EVENTS = ['compute.instance.create.end']
 SSH_TIMEOUT = 10
 CONFIGURATION_SECTION = 'physical_layer'
 
+
 class EphemeralDiskCollector(base.Collector):
     """
     Collector for Ephemeral Disk. This collector requires Nova
@@ -42,11 +43,11 @@ class EphemeralDiskCollector(base.Collector):
     def __init__(self, graph_db, conf_manager, event_manager):
         events = CREATED_EVENTS + DELETE_EVENTS
         super(EphemeralDiskCollector, self).__init__(graph_db, conf_manager,
-                                              event_manager, events)
+                                                     event_manager, events)
         self.graph_db = graph_db
         self.conf_mgr = conf_manager
-        self.hosts=[]
-        for machine in self.conf_mgr.get_machines(): # can just keep the list in config mgr, or deepcopy ++++
+        self.hosts = []
+        for machine in self.conf_mgr.get_machines():
             self.hosts.append(machine)
         self.instance_disks = {}
         self.instance_disk_lookup = {}
@@ -56,13 +57,13 @@ class EphemeralDiskCollector(base.Collector):
         Adds the instances to the graph database and connects them to the
         relevant machine nodes.
         """
-        LOG.info("Adding ephemeral_disk components to the landscape.")
+        LOG.info("[EDISK] Adding ephemeral_disk components to the landscape.")
         now_ts = time.time()
         self._retrieve_instance_disks()
         for instance_id, disk_obj in self.instance_disks.iteritems():
-            self.attach_ephemeral_disk_to_instance(instance_id, disk_obj, now_ts)
+            self.attach_disk_to_instance(instance_id, disk_obj, now_ts)
 
-    def attach_ephemeral_disk_to_instance(self, uuid, disk_obj, timestamp):
+    def attach_disk_to_instance(self, uuid, disk_obj, timestamp):
         """
         Attaches ephemeral disks to the instance.
         :param uuid:
@@ -79,9 +80,9 @@ class EphemeralDiskCollector(base.Collector):
         :param event: The event that has occurred.
         :param body: The details of the event that occurred.
         """
-        LOG.info("Processing event received: %s", event)
-        now_ts = time.time()
-        self._process_event(now_ts, event, body)
+        LOG.info("[EPHEMERAL DISK] Processing event received: %s", event)
+        current_ts = time.time()
+        self._process_event(current_ts, event, body)
 
     def _process_event(self, timestamp, event, body):
         """
@@ -95,12 +96,11 @@ class EphemeralDiskCollector(base.Collector):
         uuid = body.get("payload", dict()).get("instance_id", default)
         hostname = body.get("payload", dict()).get("host", default)
 
-
         # Add the ephemeral disks after the vm has been created.
         if event in CREATED_EVENTS:
             self._host_ephemeral_disks(hostname)
             disk_obj = self.instance_disks[uuid]
-            self.attach_ephemeral_disk_to_instance(uuid, disk_obj, timestamp)
+            self.attach_disk_to_instance(uuid, disk_obj, timestamp)
         elif event in DELETE_EVENTS:
             self._delete_instance(uuid, timestamp)
 
@@ -110,8 +110,6 @@ class EphemeralDiskCollector(base.Collector):
         :param uuid: UUID for the instance.
         :param timestamp: epoch timestamp.
         """
-        instance_node = self.graph_db.get_node_by_uuid(uuid)
-
         # Delete ephemeral disks attached to the instance
         instance_disks = self.instance_disk_lookup.get(uuid, [])
         for disk_uuid in instance_disks:

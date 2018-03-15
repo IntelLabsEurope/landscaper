@@ -35,6 +35,7 @@ UPDATE_EVENTS = ['compute.instance.resize.revert.end',
                  'compute.instance.update']
 CREATED_EVENTS = ['compute.instance.create.end']
 
+
 class NovaCollectorV2(base.Collector):
     """
     Collector for Openstack nova V2. This collector requires physical host
@@ -52,7 +53,7 @@ class NovaCollectorV2(base.Collector):
         Adds the instances to the graph database and connects them to the
         relevant machine nodes.
         """
-        LOG.info("Adding Nova components to the landscape.")
+        LOG.info("[NOVA] Adding Nova components to the landscape.")
         now_ts = time.time()
         for instance in self.nova.servers.list():
             vcpus, mem, name, hostname = self._get_instance_info(instance)
@@ -64,7 +65,7 @@ class NovaCollectorV2(base.Collector):
         :param event: The event that has occurred.
         :param body: The details of the event that occurred.
         """
-        LOG.info("Processing event received: %s", event)
+        LOG.info("[NOVA] Processing event received: %s", event)
         now_ts = time.time()
         self._process_event(now_ts, event, body)
 

@@ -80,7 +80,7 @@ class ConfigurationManager(object):
         """
         try:
             return getattr(self, section)
-        except:
+        except AttributeError:
             err_msg = 'Config: Section {} not found'.format(section)
             LOG.info(err_msg)
             raise ValueError(err_msg)

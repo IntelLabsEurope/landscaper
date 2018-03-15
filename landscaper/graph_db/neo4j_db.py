@@ -267,7 +267,6 @@ class Neo4jGDB(base.GraphDB):
         start = int(float(start))
         timeframe = int(float(timeframe))
         end = start + timeframe
-        # TODO: Expand to search through attributes.
         # Build conditional query
         conditional_query = ""
         property_key = properties[0]
@@ -530,7 +529,6 @@ class Neo4jGDB(base.GraphDB):
                     relations.append(relation)
 
         for rel in relations:
-            # TODO: Check if this works. Was not working for get_graph.
             src_uuid = dict(rel.start_node()).get('name', 'None')
             dst_uuid = dict(rel.end_node()).get('name', 'None')
             if result.has_node(src_uuid) and result.has_node(dst_uuid):

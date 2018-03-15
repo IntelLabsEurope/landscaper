@@ -111,8 +111,11 @@ def create_test_config():
     to the testing data directory.
     """
     gdb_env = "USE_TEST_GDB"
-    if gdb_env not in os.environ and os.environ[gdb_env].lower() != "true":
+    if gdb_env not in os.environ:
         msg = "Set '{}' to true, to run these tests".format(gdb_env)
+        raise AttributeError(msg)
+    if os.environ[gdb_env].lower() != "true":
+        msg = "Functionality for setting {} to false not ready".format(gdb_env)
         raise AttributeError(msg)
 
     user_env = "NEO4J_USER"
@@ -125,12 +128,11 @@ def create_test_config():
 
     username = os.environ[user_env]
     password = os.environ[pass_env]
-
     test_config = {"neo4j": {"url": "http://localhost:7474/db/data",
                              "user": username, "password": password},
                    "general": {"graph_db": "Neo4jGDB",
                                "event_listeners": "", "collectors": ""},
-                   "physical_layer" : {"machines" : "machine-A"}}
+                   "physical_layer": {"machines": "machine-A"}}
 
     # Add RabbitMQ listener configs
     test_config['rabbitmq'] = {}

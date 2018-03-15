@@ -17,7 +17,6 @@ Tests event update methods for core openstack collectors.
 import cPickle as pickle
 import logging
 import unittest
-import time
 import mock
 from mock import patch
 
@@ -80,7 +79,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.nova_collector.openstack")
     @patch("landscaper.collector.nova_collector.time")
-    def _delete_nova_instance(self, instance_id, mck_time, mck_os):
+    def _delete_nova_instance(self, instance_id, mck_time, _):
         mck_time.time.return_value = "1502825001"
         event_body = {"payload": {"instance_id": instance_id}}
         delete_event = nova_collector.DELETE_EVENTS[0]
@@ -91,7 +90,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.neutron_collector.openstack")
     @patch("landscaper.collector.neutron_collector.time")
-    def _delete_neutron_vnic(self, port_id, mck_time, mck_os):
+    def _delete_neutron_vnic(self, port_id, mck_time, _):
         mck_time.time.return_value = "1502825001"
         delete_port_event = neutron_collector.PORT_DELETE_EVENTS[0]
         event_body = {"payload": {"port_id": port_id}}
@@ -102,7 +101,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.cinder_collector.openstack")
     @patch("landscaper.collector.cinder_collector.time")
-    def _delete_cinder_volume(self, volume_id, mck_time, mck_os):
+    def _delete_cinder_volume(self, volume_id, mck_time, _):
         mck_time.time.return_value = "1502825001"
         delete_volume_event = cinder_collector.DELETE_EVENTS[0]
         event_body = {"payload": {"volume_id": volume_id}}
@@ -113,7 +112,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.heat_collector.openstack")
     @patch("landscaper.collector.heat_collector.time")
-    def _delete_heat_stack(self, stack_id, mck_time, mck_os):
+    def _delete_heat_stack(self, stack_id, mck_time, _):
         mck_time.time.return_value = "1502825001"
         delete_stack_event = heat_collector.DELETE_EVENTS[0]
         event_body = {"payload": {'stack_identity': stack_id}}
@@ -124,7 +123,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.nova_collector.openstack")
     @patch("landscaper.collector.nova_collector.time")
-    def _add_nova_instance(self, uuid, host, name, mck_time, mck_os):
+    def _add_nova_instance(self, uuid, host, name, mck_time, _):
         mck_time.time.return_value = "1502828001"
         nova_coll = nova_collector.NovaCollectorV2(self.graph_db,
                                                    self.conf_manager,
@@ -136,7 +135,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.neutron_collector.openstack")
     @patch("landscaper.collector.neutron_collector.time")
-    def _add_neutron_port(self, prt_id, net_id, instance_id, mck_time, mck_os):
+    def _add_neutron_port(self, prt_id, net_id, instance_id, mck_time, _):
         mck_time.time.return_value = "1502828001"
         neutron_col = neutron_collector.NeutronCollectorV2(self.graph_db,
                                                            self.conf_manager,
@@ -153,7 +152,7 @@ class TestOpenstackCollectorEvents(unittest.TestCase):
 
     @patch("landscaper.collector.cinder_collector.openstack")
     @patch("landscaper.collector.cinder_collector.time")
-    def _add_volume(self, instance, volume_id, mck_time, mck_os):
+    def _add_volume(self, instance, volume_id, mck_time, _):
         mck_time.time.return_value = "1502828001"
 
         event_body = {"payload": {"volume_id": volume_id,
@@ -344,6 +343,5 @@ def _simulate_events(listener, event_file):
     :param event_file: The events to simulate.
     """
     events = pickle.load(open(event_file, 'rb'))
-    for delay, _, event_body in events:
-        # print "{:40} -- {:.5f}".format(event, delay)
+    for _, _, event_body in events:
         listener._cb_event(event_body, mock.Mock())

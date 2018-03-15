@@ -56,7 +56,7 @@ class NeutronCollectorV2(base.Collector):
         """
         Adds all neutron ports, nets and subnets to the graph database.
         """
-        LOG.info("Adding Neutron components to the landscape.")
+        LOG.info("[NEUTRON] Adding Neutron components to the landscape.")
         now_ts = time.time()
         # Collect Networks
         networks = self.neutron.list_networks()
@@ -86,7 +86,7 @@ class NeutronCollectorV2(base.Collector):
         :param event: Neutron event type.
         :param body: Event details.
         """
-        LOG.info("Neutron event received: %s", event)
+        LOG.info("[NEUTRON] Neutron event received: %s", event)
         now_ts = time.time()
         net_events, port_events, subnet_events = self._events(categories=True)
 

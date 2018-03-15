@@ -50,7 +50,7 @@ class CinderCollectorV2(base.Collector):
         """
         Add Volume nodes to the landscape.
         """
-        LOG.info("Adding Cinder components to the landscape.")
+        LOG.info("[CINDER] Adding Cinder components to the landscape.")
         now_ts = time.time()
         for volume in self.cinder.volumes.list():
             volume_id, size, hostname, vm_id = self._get_volume_info(volume)
@@ -62,7 +62,7 @@ class CinderCollectorV2(base.Collector):
         :param event: Event type.
         :param body: Event details.
         """
-        LOG.info("Cinder event received: %s.", event)
+        LOG.info("[CINDER] Cinder event received: %s.", event)
         now_ts = time.time()
         uuid = body.get("payload", dict()).get("volume_id", "UNDEFINED")
         size = body.get("payload", dict()).get("size", "UNDEFINED")
