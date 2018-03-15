@@ -29,6 +29,7 @@ class ConfigurationManager(object):
         self.sections = []
         self.config = ConfigParser.ConfigParser()
         self.config.read(config_file)
+        self.config_file = config_file
         for section in self.sections:
             self.add_section(section)
 
@@ -71,6 +72,25 @@ class ConfigurationManager(object):
             return sect[variable]
         LOG.info('Config: Cannot find %s in section %s', variable, section)
         return None
+
+    def set_variable(self, section, variable, value):
+        """
+        Sets the value of a variable for a given section.
+        :param section: section to be loaded (string)
+        :param variable: name of the variable (string)
+        :param: value: the value to set for this variable
+        """
+        # write setting to config mgr in memory
+        config_values = ConfigurationManager._config_section_map(section,
+                                                                 self.config)
+        config_values[variable] = value
+        setattr(self, section, config_values)
+
+        # write setting back to config file
+        cfgfile = open(self.config_file, 'w')
+        self.config.set(section, variable, value)
+        self.config.write(cfgfile)
+        cfgfile.close()
 
     def get_variable_list(self, section):
         """

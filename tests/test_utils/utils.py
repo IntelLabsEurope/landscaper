@@ -130,7 +130,7 @@ def create_test_config():
     password = os.environ[pass_env]
     test_config = {"neo4j": {"url": "http://localhost:7474/db/data",
                              "user": username, "password": password},
-                   "general": {"graph_db": "Neo4jGDB",
+                   "general": {"graph_db": "Neo4jGDB", "flush": False,
                                "event_listeners": "", "collectors": ""},
                    "physical_layer": {"machines": "machine-A"}}
 
