@@ -693,7 +693,7 @@ def _format_node(node):
     """
     formatted_node = dict()
     for prop in node:
-        if isinstance(node[prop], dict):
+        if isinstance(node[prop], dict) or isinstance(node[prop], list):
             formatted_node[prop] = json.dumps(node[prop])
         else:
             formatted_node[prop] = node[prop]

@@ -113,6 +113,16 @@ class ConfigurationManager(object):
         """
         return self.get_variable('physical_layer', 'machines').split(",")
 
+    def get_swarm_info(self):
+        """
+        Swarm configuration information.
+        """
+        port = int(self.get_variable('docker', 'swarm_port'))
+        ip_address = self.get_variable('docker', 'swarm_ip')
+        cert = self.get_variable('docker', 'client_cert')
+        key = self.get_variable('docker', 'client_key')
+        return port, ip_address, cert, key
+
     def get_neo4j_url(self):
         """
         URL of the neo4j database.
@@ -157,12 +167,10 @@ class ConfigurationManager(object):
         """
         List of event listeners.
         """
-        listeners_str = self.get_variable("general", "event_listeners")
-        if listeners_str:
-            listeners = listeners_str.split(',')
-            clean_listeners = [listener.strip() for listener in listeners]
-            if clean_listeners[0]:
-                return clean_listeners
+        listeners = self.get_variable("general", "event_listeners").split(',')
+        clean_listeners = [listener.strip() for listener in listeners]
+        if clean_listeners[0]:
+            return clean_listeners
         return []
 
     def get_graph_db(self):
