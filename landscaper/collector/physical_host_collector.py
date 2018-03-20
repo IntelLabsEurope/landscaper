@@ -53,7 +53,7 @@ class HWLocCollector(base.Collector):
         Build the physical layer machines and constituent components and add to
         the graph database.
         """
-        LOG.info("Adding physical machines to the landscape.")
+        LOG.info("[PHYS] Adding physical machines to the landscape.")
         now_ts = time.time()
         for machine in self.conf_mgr.get_machines():
             self._add_physical_machine(machine, now_ts)
@@ -95,8 +95,7 @@ class HWLocCollector(base.Collector):
         :param graph: The graph containing the node.
         :param node: THe id of the node.
         """
-        node_type = graph.node[node]["type"]
-        coords = coordinates.component_coordinates(node, node_type)
+        coords = coordinates.component_coordinates(node)
         graph.node[node]["attributes"]["coordinates"] = coords
 
     def _get_hwloc(self, machine):

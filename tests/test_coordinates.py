@@ -15,8 +15,6 @@
 Tests for coordinates retrieval
 """
 import os
-import json
-import numbers
 import unittest
 import mock
 
@@ -41,24 +39,6 @@ class TestCoordinatesJson(unittest.TestCase):
         """
         self.assertTrue(os.path.isfile(paths.COORDINATES))
 
-    def test_coordinates_json_good(self):
-        """
-        Check that the json is formatted correctly.
-        """
-        try:
-            test_coordinates = json.load(open(paths.COORDINATES))
-        except ValueError:
-            self.fail("Couldn't parse coordinates json file. Malformed json")
-
-        try:
-            for _, physical_components in test_coordinates.iteritems():
-                for component in physical_components:
-                    self.assertIsInstance(component['name'], basestring)
-                    self.assertIsInstance(component['latitude'], numbers.Real)
-                    self.assertIsInstance(component['longitude'], numbers.Real)
-        except KeyError:
-            self.fail("Wrong structure for json file.")
-
 
 class TestCoordinatesRetrieval(unittest.TestCase):
     """
@@ -69,40 +49,48 @@ class TestCoordinatesRetrieval(unittest.TestCase):
         tests_dir = os.path.dirname(os.path.abspath(__file__))
         self.coords_path = os.path.join(tests_dir, 'data/coordinates.json')
 
-    def test_unknown_type(self):
+    @mock.patch("landscaper.utilities.coordinates.paths")
+    def test_unknown_name(self, mck_paths):
         """
-        Check that an incorrect type is ignored even when the id is there in
-        another list.
+        Check that a name that does not exist is ignored.
         """
-        coords = coordinates.component_coordinates("machine-A", "hammer")
+        mck_paths.COORDINATES = self.coords_path
+        coords = coordinates.component_coordinates("machine-G")
         self.assertIsNone(coords)
 
-    def test_unknown_name(self):
+    @mock.patch("landscaper.utilities.coordinates.paths")
+    def test_none_name(self, mck_paths):
         """
-        Type is available, but name is not.
+        Check that a None value input is ignored.
         """
-        coords = coordinates.component_coordinates("machine-K", "machine")
+        mck_paths.COORDINATES = self.coords_path
+        coords = coordinates.component_coordinates(None)
         self.assertIsNone(coords)
 
     @mock.patch("landscaper.utilities.coordinates.paths")
     def test_grab_machine_coordinates(self, mck_paths):
         """
-        Retrieve machine coordinates.
+        Retrieve machine coordinates for Point, LineString and Polygon format.
         """
         mck_paths.COORDINATES = self.coords_path
 
-        coords_b = coordinates.component_coordinates("machine-B", "machine")
-        coords_c = coordinates.component_coordinates("machine-C", "machine")
-        self.assertEqual(coords_b, (40.45712, -78.254))
-        self.assertEqual(coords_c, (53.374641, -6.522470))
-
-    @mock.patch("landscaper.utilities.coordinates.paths")
-    def test_grab_switch_coordinates(self, mck_paths):
-        """
-        Retrieve switch coordinates.
-        """
-        mck_paths.COORDINATES = self.coords_path
-        coordinates_v = coordinates.component_coordinates("switch-V", "switch")
-        coordinates_k = coordinates.component_coordinates("switch-K", "switch")
-        self.assertEqual(coordinates_v, (-3.2, -40))
-        self.assertEqual(coordinates_k, (-20.78, 130.5644))
+        coords_b = coordinates.component_coordinates("machine-B")
+        coords_c = coordinates.component_coordinates("machine-C")
+        coords_d = coordinates.component_coordinates("machine-D")
+        self.assertEqual(coords_b, {
+            "type": "Point",
+            "coordinates": [-78.254, 40.45712]
+            })
+        self.assertEqual(coords_c, {
+            "type": "LineString",
+            "coordinates": [
+                [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]
+                ]
+        })
+        self.assertEqual(coords_d, {
+            "type": "Polygon",
+            "coordinates": [
+                [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+                 [100.0, 1.0], [100.0, 0.0]]
+                ]
+        })

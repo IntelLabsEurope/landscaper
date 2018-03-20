@@ -16,7 +16,6 @@ Integration tests for the get subgraph feature.
 """
 import json
 import logging
-import os
 import unittest
 
 from networkx.readwrite import json_graph
@@ -31,7 +30,7 @@ class TestGetSubGraph(unittest.TestCase):
     test_landscape.json graph to validate that the correct graphs are being
     retrieved.
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
     subgraph_file = "tests/data/test_subgraph.json"
 
     @classmethod

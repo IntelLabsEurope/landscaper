@@ -53,6 +53,19 @@ class Neo4jGDB(base.GraphDB):
         self.graph_db_refreshed = None
         self.graph_db = self._get_db_connection()
 
+    def find(self, label, node_id):
+        """
+        Returns true or false of whether the node with label exists.
+        :param label: node label name.
+        :param node_id: Node id.
+        :return: Returns true or false of whether the node with label exists.
+        """
+        node = self.graph_db.find_one(label, property_key="name",
+                                      property_value=node_id)
+        if node:
+            return True
+        return False
+
     def add_node(self, node_id, identity, state, timestmp):
         """
         Add a node to the Neo4j database, which involves adding the identity
@@ -85,54 +98,69 @@ class Neo4jGDB(base.GraphDB):
 
         return iden_node
 
-    def update_node(self, node_id, identity, state, timestmp):
+    def update_node(self, node_id, timestamp, state=None, extra_attrs=None):
         """
         Updating a node in the database involves expiring the old state node
         and then creating a new state node and linking it to identity node
         which is being updated.
+        :param additional_attributes:
         :param node_id: The identity node id.
-        :param identity: The identity node.
         :param state:  The new state.
-        :param timestmp: Epoch timestamp of when the update occurred.
+        :param timestamp: Epoch timestamp of when the update occurred.
         :return:  Instance of the identity node.
         """
-        # Grab the identity node from the database.
-        identity = _format_node(identity)
-        identity['name'] = node_id
-        identity_node = self.get_node_by_uuid(node_id)
+        state_attrs = None
+        identity = self.get_node_by_uuid(node_id)
 
-        if identity_node is None:
-            LOG.warn("Node Id %s not found.", node_id)
-            return None
-        existing_state = self._get_state_node(identity_node, timestmp)
-        if existing_state is not None:
-            old_state_node = existing_state[0]
-            old_state_edge = existing_state[1]
-            state_nodes_equal = _attributes_equal(state, dict(old_state_node))
-            if not state_nodes_equal:
-                # Update the database with the new state
+        if not identity:
+            umsg = "Node: %s. Node not in the landscape." % node_id
+            LOG.warn(umsg)
+            return (None, umsg)
 
-                # Create new state
-                state_label = identity.get('category', 'UNDEFINED') + '_state'
-                new_state_node = Node(state_label, **state)
-                new_state_edge = self._create_edge(identity_node,
-                                                   new_state_node,
-                                                   timestmp, 'STATE')
+        if not state and not extra_attrs:
+            umsg = "Node: %s. No attributes supplied for update." % node_id
+            LOG.warn(umsg)
+            return (identity, umsg)
 
-                # remove old state
-                self._expire_edge(old_state_edge, timestmp)
+        if state:
+            state_attrs = state
 
-                # persist it all to the database.
-                self.graph_db.push(old_state_edge)
-                transaction = self.graph_db.begin()
-                transaction.create(new_state_edge)
-                transaction.commit()
+        old_state = self._get_state_node(identity, time.time())
+        if not old_state:
+            umsg = "Can't update node: %s, as it is already expired." % node_id
+            LOG.warn(umsg)
+            return (identity, umsg)
+
+        old_node, old_edge = old_state
+
+        if extra_attrs:
+            if state_attrs:
+                state_attrs.update(extra_attrs)
             else:
-                LOG.warn("Node %s, has already been updated", node_id)
-        else:
-            LOG.error("Could not update the state for node: %s", node_id)
+                state_attrs = dict(old_node)
+                state_attrs.update(extra_attrs)
 
-        return identity_node
+        if state_attrs == dict(old_node):
+            umsg = "Node: %s. No update. Current state is identical" % node_id
+            LOG.warn(umsg)
+            return (identity, umsg)
+
+        # Create new state and edge to identity.
+        state_label = identity.get('category', 'UNDEFINED') + '_state'
+        state_node = Node(state_label, **state_attrs)
+        new_edge = self._create_edge(identity, state_node, timestamp, 'STATE')
+
+        # Expire old edge between identity and state.
+        self._expire_edge(old_edge, timestamp)
+
+        # Commit it all
+        self.graph_db.push(old_edge)
+        transaction = self.graph_db.begin()
+        transaction.create(new_edge)
+        transaction.commit()
+
+        umsg = "Node %s updated successfully" % node_id
+        return (identity, umsg)
 
     def add_edge(self, src_node, dest_node, timestamp, label=None):
         """
@@ -274,7 +302,7 @@ class Neo4jGDB(base.GraphDB):
         selected = selector.select().where(*conditions)
         return list(selected)
 
-    def get_node_by_uuid_web(self, uuid):
+    def get_node_by_uuid_web(self, uuid, json_out=True):
         """
         Returns a networkx graph containing matching node.
         :param uuid: The node name.
@@ -289,13 +317,19 @@ class Neo4jGDB(base.GraphDB):
         if result:
             records = result[0]
             node = dict(records[0])
+            state_attrs = dict(records[1])
+            if 'geo' in state_attrs:
+                state_attrs['geo'] = json.loads(state_attrs['geo'])
+
             state_attributes = self._unique_attribute_names(IDEN_PROPS,
-                                                            dict(records[1]),
+                                                            state_attrs,
                                                             node["type"])
             node.update(state_attributes)
             graph.add_node(uuid, node)
-            graph_json = json.dumps(json_graph.node_link_data(graph))
-            return graph_json
+
+            if json_out:
+                graph = json.dumps(json_graph.node_link_data(graph))
+            return graph
         return None
 
     def get_node_by_uuid(self, node_id):
@@ -484,6 +518,9 @@ class Neo4jGDB(base.GraphDB):
                         else:
                             prefix = "component"
                         state = dict(relation.end_node())
+                        if 'geo' in state:
+                            state['geo'] = json.loads(state['geo'])
+
                         state_attrs = self._unique_attribute_names(IDEN_PROPS,
                                                                    state,
                                                                    prefix)
@@ -501,7 +538,8 @@ class Neo4jGDB(base.GraphDB):
 
         if result.node:
             if json_out:
-                result = json.dumps(json_graph.node_link_data(result))
+                js_gr = json_graph.node_link_data(result)
+                result = json.dumps(js_gr)
             return result
         return None
 
@@ -522,6 +560,8 @@ class Neo4jGDB(base.GraphDB):
             if uuid is not None:
                 attr = dict(idnode)
                 state_attrs = dict(statenode)
+                if 'geo' in state_attrs:
+                    state_attrs['geo'] = json.loads(state_attrs['geo'])
                 state_attributes = self._unique_attribute_names(IDEN_PROPS,
                                                                 state_attrs,
                                                                 attr["type"])
@@ -538,7 +578,8 @@ class Neo4jGDB(base.GraphDB):
             result.add_edge(src_uuid, dst_uuid, rel_attr, label=edge[0].type())
 
         if json_out:
-            result = json.dumps(json_graph.node_link_data(result))
+            js_gr = json_graph.node_link_data(result)
+            result = json.dumps(js_gr)
 
         return result
 
@@ -617,7 +658,6 @@ class Neo4jGDB(base.GraphDB):
         graph = json_graph.node_link_graph(graph_data, directed=True)
 
         node_lookup = {}
-
         for node_id, node_data in graph.nodes(data=True):
             node_attrs = _format_node(node_data)
             if "_state_" in node_id:
@@ -653,7 +693,7 @@ def _format_node(node):
     """
     formatted_node = dict()
     for prop in node:
-        if isinstance(node[prop], dict):
+        if isinstance(node[prop], dict) or isinstance(node[prop], list):
             formatted_node[prop] = json.dumps(node[prop])
         else:
             formatted_node[prop] = node[prop]

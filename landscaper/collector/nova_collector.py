@@ -25,14 +25,15 @@ IDENTITY_ATTR = {'layer': 'virtual', 'type': 'vm', 'category': 'compute'}
 STATE_ATTR = {'vcpu': None, 'mem': None}
 
 # Events to listen for.
-ADD_EVENTS = ['compute.instance.create.end']
-
+ADD_EVENTS = ['compute.instance.create.end',
+              'compute.instance.update']
 DELETE_EVENTS = ['compute.instance.delete.end',
                  'compute.instance.shutdown.end']
 UPDATE_EVENTS = ['compute.instance.resize.revert.end',
                  'compute.instance.finish_resize.end',
                  'compute.instance.rebuild.end',
                  'compute.instance.update']
+CREATED_EVENTS = ['compute.instance.create.end']
 
 
 class NovaCollectorV2(base.Collector):
@@ -52,9 +53,8 @@ class NovaCollectorV2(base.Collector):
         Adds the instances to the graph database and connects them to the
         relevant machine nodes.
         """
-        LOG.info("Adding Nova components to the landscape.")
+        LOG.info("[NOVA] Adding Nova components to the landscape.")
         now_ts = time.time()
-
         for instance in self.nova.servers.list():
             vcpus, mem, name, hostname = self._get_instance_info(instance)
             self._add_instance(instance.id, vcpus, mem, name, hostname, now_ts)
@@ -65,7 +65,7 @@ class NovaCollectorV2(base.Collector):
         :param event: The event that has occurred.
         :param body: The details of the event that occurred.
         """
-        LOG.info("Processing event received: %s", event)
+        LOG.info("[NOVA] Processing event received: %s", event)
         now_ts = time.time()
         self._process_event(now_ts, event, body)
 
@@ -77,18 +77,30 @@ class NovaCollectorV2(base.Collector):
         :param event: The type of event.
         :param body: THe Event data.
         """
-        uuid = body.get("payload", dict()).get("instance_id", "UNDEFINED")
-        vcpus = body.get("payload", dict()).get("vcpus", "UNDEFINED")
-        mem = body.get("payload", dict()).get("memory_mb", "UNDEFINED")
-        name = body.get("payload", dict()).get("display_name", "UNDEFINED")
-        hostname = body.get("payload", dict()).get("host", "UNDEFINED")
+        default = "UNDEFINED"
+        uuid = body.get("payload", dict()).get("instance_id", default)
+        vcpus = body.get("payload", dict()).get("vcpus", default)
+        mem = body.get("payload", dict()).get("memory_mb", default)
+        name = body.get("payload", dict()).get("display_name", default)
+        hostname = body.get("payload", dict()).get("host", default)
 
-        if event in DELETE_EVENTS:
+        instance_params = (uuid, vcpus, mem, name, hostname)
+        if event in ADD_EVENTS and self._can_add(instance_params, default):
+            self._add_instance(uuid, vcpus, mem, name, hostname, timestamp)
+        elif event in DELETE_EVENTS:
             self._delete_instance(uuid, timestamp)
         elif event in UPDATE_EVENTS:
             self._update_instance(uuid, vcpus, mem, name, timestamp)
-        elif event in ADD_EVENTS:
-            self._add_instance(uuid, vcpus, mem, name, hostname, timestamp)
+
+    def _can_add(self, parameters, default_value):
+        # check that all parameters are filled, could be a partial update.
+        for parameter in parameters:
+            if not parameter or parameter == default_value:
+                return False
+        # Check if the vm is in the database. If it is not then we can add it.
+        instance_id = parameters[0]
+        found = self.graph_db.find(IDENTITY_ATTR['category'], instance_id)
+        return not found
 
     def _get_instance_info(self, instance):
         """
@@ -119,8 +131,8 @@ class NovaCollectorV2(base.Collector):
 
         # Creates the edge between the instance and the machine.
         if inst_node is not None and machine is not None:
-            self.graph_db.add_edge(inst_node, machine,
-                                   timestamp, "DEPLOYED_ON")
+            label = "DEPLOYED_ON"
+            self.graph_db.add_edge(inst_node, machine, timestamp, label)
 
     def _update_instance(self, uuid, vcpus, mem, name, timestamp):
         """
@@ -131,8 +143,8 @@ class NovaCollectorV2(base.Collector):
         :param name: Instance name.
         :param timestamp: Epoch timestamp.
         """
-        identity, state = self._create_instance_nodes(vcpus, mem, name)
-        self.graph_db.update_node(uuid, identity, state, timestamp)
+        _, state = self._create_instance_nodes(vcpus, mem, name)
+        self.graph_db.update_node(uuid, timestamp, state)
 
     def _delete_instance(self, uuid, timestamp):
         """

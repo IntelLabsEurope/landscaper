@@ -13,9 +13,8 @@
 # limitations under the License.
 
 from distutils.core import setup
-
 setup(name='landscaper',
-      version='1.0',
+      version='1.1',
       description='Creates a live landscape for a cloud infrastructure.',
       author='Intel Labs Europe',
       packages=['landscaper'],
@@ -24,4 +23,5 @@ setup(name='landscaper',
                 'keystoneauth1==2.18', 'pythoncinderclient==1.11.0',
                 'pythonheatclient==1.8.0', 'pythonkeystoneclient==3.10.0',
                 'pythonneutronclient==6.1.0',  'pythonnovaclient==7.1.0',
-                'gunicorn == 19.7.1'])
+                'gunicorn == 19.7.1', 'paramiko==2.4.0', 'docker-py==1.10.6',
+                'flask_cors==3.0.3'])

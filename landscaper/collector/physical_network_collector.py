@@ -37,7 +37,7 @@ class PhysicalNetworkCollector(base.Collector):
         self.graph_db = graph_db
 
     def init_graph_db(self):
-        LOG.info("Adding physical network.")
+        LOG.info("[PHYS NETWORK] Adding physical network.")
         net_description = self._network_description(paths.NETWORK_DESCRIPTION)
         for switch, switch_info in net_description.iteritems():
             self._add_switch(switch, switch_info, time.time())

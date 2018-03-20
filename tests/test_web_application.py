@@ -24,6 +24,9 @@ import mock
 from mock import MagicMock
 
 from landscaper.web import application
+from landscaper.landscape_manager import LandscapeManager
+
+from tests.test_utils import utils
 
 
 class TestApplication(unittest.TestCase):
@@ -153,7 +156,7 @@ class TestApplication(unittest.TestCase):
 
     @mock.patch("landscaper.web.application.time")
     @mock.patch("landscaper.web.application.LANDSCAPE")
-    def test_get_node_by_props_success(self, lm, mck_time):
+    def test_get_node_by_props_success(self, mlm, mck_time):
         """
         Test the success conditions for get_node_by_properties.
         """
@@ -161,15 +164,15 @@ class TestApplication(unittest.TestCase):
         params = [("layer", "virtual", "="), ("category", "compute"),
                   ("vcpu", 5, ">")]
         url = "{}?properties={}".format(base_url, params)
-        time_st = 45
+        time_s = 45
 
         # Mock Graph.
         graph = '{"graph": "name"}'
         mock_graph = MagicMock(return_value=graph)
-        lm.graph_db.get_node_by_properties_web = mock_graph
+        mlm.graph_db.get_node_by_properties_web = mock_graph
 
         # Mock time
-        mck_time.time = MagicMock(return_value=time_st)
+        mck_time.time = MagicMock(return_value=time_s)
 
         # Call the application.
         response = self.app.get(url)
@@ -177,9 +180,8 @@ class TestApplication(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_data(), graph)
         self.assertEqual(response.mimetype, "application/json")
-        lm.graph_db.get_node_by_properties_web.assert_called_once_with(params,
-                                                                       time_st,
-                                                                       0)
+        mlm.graph_db.get_node_by_properties_web.assert_called_once_with(
+            params, time_s, 0)
 
     @mock.patch("landscaper.web.application.LANDSCAPE")
     def test_get_node_by_props_failure(self, mock_lm):
@@ -188,7 +190,8 @@ class TestApplication(unittest.TestCase):
         """
         url = "/nodes"
         graph = '{"graph": "name"}'
-        mock_lm.graph_db.get_node_by_properties = MagicMock(return_value=graph)
+        mock_lm.graph_db.get_node_by_properties = MagicMock(
+            return_value=graph)
 
         response = self.app.get(url)
 
@@ -225,3 +228,270 @@ class TestApplication(unittest.TestCase):
         start = error_body.index("<p>") + 3
         end = len(error_body) - 4
         return error_body[start:end]
+
+
+class TestAddGeo(unittest.TestCase):
+    """
+    Tests for adding the geolocation to the node
+    """
+
+    def setUp(self):
+        # Testing and api run in different directories.
+        application.WORK_DIR = "."
+
+        # Test flask calls.
+        self.app = application.APP.test_client()
+
+    def test_empty_list(self):
+        """
+        Test that it aborts with an empty list
+        """
+        url = "/coordinates"
+        input_body = []
+        response = self.app.put(url, data=input_body)
+
+        self.assertEqual(response.status_code, 400)
+
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_node_does_not_exist(self, mk_ls):
+        """
+        Test node does not exist in the Landscape
+        """
+        # 1. Replace DB connection with fake
+        mk_ls.graph_db.update_node.return_value = (None, "")
+
+        # 2. Create Fake Request
+        fake_body = "[{'id': 'A', " \
+                    "'geo': {'type': 'Point', 'coordinates': [1, 2],}}]"
+
+        url = "/coordinates"
+        response = self.app.put(url, data=fake_body)
+        self.assertEqual(response.status_code, 400)
+
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_node_exists(self, mk_ls):
+        """
+        Test two nodes are updated successfully
+        """
+        # 1. Replace DB connection with fake
+        mk_ls.graph_db.update_node.return_value = ('Success', "")
+
+        # mk_ls.graph_db.update_node.side_effect = None
+        # 2. Create Fake Request
+        fake_body = "[{'id': 'A', " \
+                    "'geo': {'type': 'Point', 'coordinates': [1, 2],}}," \
+                    "{'id': 'B', " \
+                    "'geo': {'type': 'Polygon', 'coordinates': [5, 6],}}]"
+
+        url = "/coordinates"
+        response = self.app.put(url, data=fake_body)
+        self.assertEqual(response.status_code, 200)
+        call_count = mk_ls.graph_db.update_node.call_count
+        self.assertEqual(call_count, 2)
+
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_node_empty_list(self, mk_ls):
+        """
+        Test two nodes are updated successfully and third node is an empty list
+        """
+        # 1. Replace DB connection with fake
+        mk_ls.graph_db.update_node.side_effect = [('Success', ""),
+                                                  ('Success', ""),
+                                                  (None, "")]
+        # 2. Create Fake Request
+        fake_body = "[{'id': 'A', " \
+                    "'geo': {'type': 'Point', 'coordinates': [1, 2]}}," \
+                    "{'id': 'B', " \
+                    "'geo': {'type': 'Polygon', 'coordinates': [5, 6]}}," \
+                    "{'id': 'C', " \
+                    "'geo': {'type': 'Polygon', 'coordinates': [5, 6]}}]"
+
+        url = "/coordinates"
+        response = self.app.put(url, data=fake_body)
+        self.assertEqual(response.status_code, 400)
+        call_count = mk_ls.graph_db.update_node.call_count
+        self.assertEqual(call_count, 3)
+
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_partially_update_nodes(self, mk_ls):
+        """
+        Test two nodes are updated successfully
+        One node is not in the Landscape and returns a None
+        """
+        # 1. Replace DB connection with fake
+        mk_ls.graph_db.update_node.side_effect = [('Success', ""),
+                                                  (None, ""),
+                                                  ('Success', "")]
+
+        # 2. Create Fake Request
+        fake_body = "[{'id': 'A', " \
+                    "'geo': {'type': 'Point', 'coordinates': [1, 2],}}," \
+                    "{'id': 'B', " \
+                    "'geo': {'type': 'Polygon', 'coordinates': [5, 6],}} ," \
+                    "{'id': 'C', "\
+                    "'geo': {'type': 'Polygon', 'coordinates': [5, 6],}}]"
+
+        url = "/coordinates"
+        response = self.app.put(url, data=fake_body)
+        self.assertEqual(response.status_code, 400)
+        call_count = mk_ls.graph_db.update_node.call_count
+        self.assertEqual(call_count, 3)
+
+    @mock.patch("landscaper.web.application.time")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_update_node_input(self, mk_ls, mk_time):
+        """
+        Test update node parameters correspond to Node_ID, timestamp and
+        additional attributes containing the geolocation of the node
+        """
+        # 1. Replace DB connection with fake
+        mk_time.time.return_value = 12
+        mk_ls.graph_db.update_node.return_value = ('Success', "")
+
+        # 2. Create Fake Request
+        fake_body = "[{'id': 'A', " \
+                    "'geo': {'type': 'Point', 'coordinates': [1, 2]}}]"
+
+        url = "/coordinates"
+        geo_string = json.dumps({'type': 'Point', 'coordinates': [1, 2]})
+        geojson = {'geo': geo_string}
+        response = self.app.put(url, data=fake_body)
+        self.assertEqual(response.status_code, 200)
+        mk_ls.graph_db.update_node.assert_called_once_with('A', 12,
+                                                           extra_attrs=geojson)
+
+
+class TestPutGeolocationIntegration(unittest.TestCase):
+    """
+    Integration tests for the put_geolocation method.
+    """
+    landscape_file = "tests/data/test_landscape_with_states.json"
+
+    def setUp(self):
+        utils.create_test_config()
+        manager = LandscapeManager(utils.TEST_CONFIG_FILE)
+        self.graph_db = manager.graph_db
+        self.graph_db.delete_all()
+        self.graph_db.load_test_landscape(self.landscape_file)
+
+        # Test flask calls.
+        self.app = application.APP.test_client()
+        application.initilise_application()
+
+    def tearDown(self):
+        self.graph_db.delete_all()
+        utils.remove_test_config()
+
+    def test_node_update_geo_exists(self):
+        """
+        Test that after update is called a geo is added to the node.
+        """
+        node_id = 'nova-1'
+        old_node = self._node_state_attributes(node_id)
+
+        # Create fake body with geolocation for node
+        fake_body = "[{'id': '%s', 'geo': {'type': 'Point', " \
+                    "'coordinates': [1, 2]}}]" % node_id
+
+        url = "/coordinates"
+        response = self.app.put(url, data=fake_body)
+
+        # Get node again, hopefully with geo.
+        new_node = self._node_state_attributes(node_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse('geo' in old_node)
+        self.assertTrue('geo' in new_node)
+
+    def test_node_update_geo_not_exist(self):
+        """
+        Test if a node does not exist, it returns an error.
+        """
+        node_id = 'fake_node'
+        old_node = self._node_state_attributes(node_id)
+        # Create fake body for fake node with geolocation
+        fake_body = "[{'id': '%s', 'geo': {'type': 'Point', " \
+                    "'coordinates': [1, 2]}}]" % node_id
+        url = "/coordinates"
+        response = self.app.put(url, data=fake_body)
+
+        self.assertFalse(old_node)
+        self.assertEqual(response.status_code, 400)
+
+    def _node_state_attributes(self, node_id):
+        """
+        returns a node from the landscape by id.
+        :param node_id: The node to grab.
+        :return: a node from the landscape by id.
+        """
+        graph = self.graph_db.get_node_by_uuid_web(node_id, json_out=False)
+        if graph:
+            return graph.nodes(data=True)[0][1]
+
+        return None
+
+
+class TestNodeFilteringREST(unittest.TestCase):
+    """
+    Test that the filtering arguments are being passed appropriately.
+    """
+
+    def setUp(self):
+        # Test flask calls.
+        self.app = application.APP.test_client()
+
+    @mock.patch("landscaper.web.application.util_graph")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_filter_nodes_graph_success(self, mck_ls, util_mck):
+        """
+        If given a filter nodes query parameter, check that it is set
+        correctly.
+        """
+        mck_ls.graph_db.get_graph.return_value = "graph"
+        mck_ls.graph_db.get_subgraph.return_value = "subgraph"
+
+        base_url = "/graph"
+        types = ['vm', 'machine']
+        url = "{}?filter-nodes={}".format(base_url, types)
+
+        self.app.get(url)
+
+        util_mck.filter_nodes.assert_called_once_with("graph", types, True)
+
+        util_mck.reset_mock()
+
+        base_url_sg = "/subgraph/lola"
+        typ_sg = ['osdev_network']
+        url_sg = "{}?filter-nodes={}".format(base_url_sg, typ_sg)
+
+        self.app.get(url_sg)
+
+        util_mck.filter_nodes.assert_called_once_with("subgraph", typ_sg, True)
+
+    @mock.patch("landscaper.web.application.util_graph")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_filter_nodes_failure(self, _, util_mck):
+        """
+        Ensure that when no filter nodes are present, that filtering is not
+        called.
+        """
+        self.app.get("/graph")
+        self.app.get("/subgraph")
+        self.assertFalse(util_mck.filter_nodes.called)
+
+    @mock.patch("landscaper.web.application.util_graph")
+    @mock.patch("landscaper.web.application.LANDSCAPE")
+    def test_filter_these(self, mck_ls, util_mck):
+        """
+        Ensure that if filter these is set that it is reflected in the call to
+        filter nodes.
+        """
+        mck_ls.graph_db.get_graph.return_value = "graph"
+        mck_ls.graph_db.get_subgraph.return_value = "subgraph"
+
+        self.app.get("/graph?filter-these=False&filter-nodes=['vnic']")
+        self.app.get("/subgraph/node?filter-these=False&filter-nodes=['vm']")
+
+        calls = [mock.call('graph', ['vnic'], False),
+                 mock.call('subgraph', ['vm'], False)]
+        util_mck.filter_nodes.assert_has_calls(calls)

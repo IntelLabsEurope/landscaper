@@ -68,20 +68,18 @@ class TestCoordinates(unittest.TestCase):
         """
         Test that the correct coordinates are retrieved.
         """
-        mck_coordinates.component_coordinates.return_value = (-3.2, -40)
+        mck_coordinates.component_coordinates.return_value = "geo_data"
         node_s = "switch-V"
         self.collector._add_coordinates(self.graph, node_s)
         coordinates_s = self.graph.node[node_s]["attributes"]["coordinates"]
-        self.assertEqual(coordinates_s, (-3.2, -40))
-        mck_coordinates.component_coordinates.assert_called_with(node_s,
-                                                                 "switch")
+        self.assertEqual(coordinates_s, "geo_data")
+        mck_coordinates.component_coordinates.assert_called_with(node_s)
 
         node_m = "machine-C"
         self.collector._add_coordinates(self.graph, node_m)
         coordinates_m = self.graph.node[node_m]["attributes"]["coordinates"]
-        self.assertEqual(coordinates_m, (-3.2, -40))
-        mck_coordinates.component_coordinates.assert_called_with(node_m,
-                                                                 "machine")
+        self.assertEqual(coordinates_m, "geo_data")
+        mck_coordinates.component_coordinates.assert_called_with(node_m)
         coords_called = mck_coordinates.component_coordinates.call_count
         self.assertEqual(coords_called, 2)
 

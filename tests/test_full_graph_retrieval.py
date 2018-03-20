@@ -15,7 +15,6 @@
 Integration tests for the get graph feature.
 """
 import logging
-import os
 import unittest
 
 from landscaper import landscape_manager
@@ -28,7 +27,7 @@ class TestGetGraph(unittest.TestCase):
     test_landscape.json graph to validate that the correct graphs are being
     retrieved.
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
 
     @classmethod
     def setUpClass(cls):
@@ -189,7 +188,7 @@ class TestGetGraph(unittest.TestCase):
         node = "96449fb1-0143-4d61-9d84-0a2fd0aa30c1"
         node_structure = {"category": "network", "layer": "virtual",
                           "name": "96449fb1-0143-4d61-9d84-0a2fd0aa30c1",
-                          "ip": "10.1.22.169", "mac": "fa:16:3e:7c:5c:66",
+                          "ip": "10.2.32.169", "mac": "fa:16:3e:7c:5c:66",
                           "type": "vnic"}
         node_2 = "machine-A_eth23_0"
         node_structure_2 = {"category": "network", "layer": "physical",

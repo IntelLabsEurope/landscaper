@@ -15,6 +15,7 @@
 Configuration class for the landscaper.
 """
 import ConfigParser
+from collections import namedtuple
 
 from landscaper import paths
 from landscaper.common import LOG
@@ -28,6 +29,7 @@ class ConfigurationManager(object):
         self.sections = []
         self.config = ConfigParser.ConfigParser()
         self.config.read(config_file)
+        self.config_file = config_file
         for section in self.sections:
             self.add_section(section)
 
@@ -71,6 +73,25 @@ class ConfigurationManager(object):
         LOG.info('Config: Cannot find %s in section %s', variable, section)
         return None
 
+    def set_variable(self, section, variable, value):
+        """
+        Sets the value of a variable for a given section.
+        :param section: section to be loaded (string)
+        :param variable: name of the variable (string)
+        :param: value: the value to set for this variable
+        """
+        # write setting to config mgr in memory
+        config_values = ConfigurationManager._config_section_map(section,
+                                                                 self.config)
+        config_values[variable] = value
+        setattr(self, section, config_values)
+
+        # write setting back to config file
+        cfgfile = open(self.config_file, 'w')
+        self.config.set(section, variable, value)
+        self.config.write(cfgfile)
+        cfgfile.close()
+
     def get_variable_list(self, section):
         """
         Returns the list of the available variables in a section
@@ -79,7 +100,7 @@ class ConfigurationManager(object):
         """
         try:
             return getattr(self, section)
-        except:
+        except AttributeError:
             err_msg = 'Config: Section {} not found'.format(section)
             LOG.info(err_msg)
             raise ValueError(err_msg)
@@ -112,6 +133,16 @@ class ConfigurationManager(object):
         """
         return self.get_variable('physical_layer', 'machines').split(",")
 
+    def get_swarm_info(self):
+        """
+        Swarm configuration information.
+        """
+        port = int(self.get_variable('docker', 'swarm_port'))
+        ip_address = self.get_variable('docker', 'swarm_ip')
+        cert = self.get_variable('docker', 'client_cert')
+        key = self.get_variable('docker', 'client_key')
+        return port, ip_address, cert, key
+
     def get_neo4j_url(self):
         """
         URL of the neo4j database.
@@ -130,6 +161,8 @@ class ConfigurationManager(object):
         """
         RabbitMQ configuration information.
         """
+        rabbitmq = namedtuple('rabbitMQ', 'username password host port topic'
+                                          ' queue exchanges')
         username = self.get_variable('rabbitmq', 'rb_name')
         password = self.get_variable('rabbitmq', 'rb_password')
         host = self.get_variable('rabbitmq', 'rb_host')
@@ -137,7 +170,8 @@ class ConfigurationManager(object):
         topic = self.get_variable('rabbitmq', 'topic')
         queue = self.get_variable('rabbitmq', 'notification_queue')
         exchanges = self.get_variable('rabbitmq', 'exchanges').split(",")
-        return (username, password, host, port, topic, queue, exchanges)
+        return rabbitmq(username, password, host, port, topic, queue,
+                        exchanges)
 
     def get_collectors(self):
         """
@@ -153,12 +187,10 @@ class ConfigurationManager(object):
         """
         List of event listeners.
         """
-        listeners_str = self.get_variable("general", "event_listeners")
-        if listeners_str:
-            listeners = listeners_str.split(',')
-            clean_listeners = [listener.strip() for listener in listeners]
-            if clean_listeners[0]:
-                return clean_listeners
+        listeners = self.get_variable("general", "event_listeners").split(',')
+        clean_listeners = [listener.strip() for listener in listeners]
+        if clean_listeners[0]:
+            return clean_listeners
         return []
 
     def get_graph_db(self):

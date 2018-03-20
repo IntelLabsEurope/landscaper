@@ -14,7 +14,9 @@
 	* [Collecting Hardware and CPU Information](#collecting-hardware-and-cpu-information)
 	* [Collecting OpenStack Information](#collecting-openstack-information)
 	* [Flushing the Neo4j Database](#flushing-the-neo4j-database)
-5. [About Landscaper](#about-landscaper)
+5. [Docker Collector](#docker-collector)
+	* [Docker Configuration](#docker-configuration)
+6. [About Landscaper](#about-landscaper)
 
 ## Introduction
 
@@ -133,6 +135,18 @@ to
 	Flush=True
 
 WARNING: This will delete all data in the Neo4j Database.
+
+
+## Docker Collector
+### Configuration
+
+Docker must be installed and configured in swarm mode.
+If using TLS (currently default) client cert and key must be generated and path given to the landscaper.cfg
+The provided script configure_docker.tls.sh is for development purposes/verification and will generate keys for usage in the folder CA_SRV, read it and understand before executing.
+client_cert=<path_to>/client-cert.pem
+client_key=<path_to>/client-priv-key.pem
+Removing these entires from the config file will allow the collector to attempt to connect without TLS
+
 
 ## About Landscaper
 

@@ -1,0 +1,25 @@
+version: '2.1'
+services: 
+ neo4j:
+  image: neo4j:3.0
+  ports: 
+   - "7474:7474" # expose the port for the console ui
+ 
+ landscaper:
+  image: landscaper:latest
+  volumes:
+   - /path/to/landscaper/data:/landscaper/data
+   - /path/to/landscaper/landscaper.cfg:/landscaper/landscaper.cfg
+  depends_on:
+   - neo4j
+
+ web:
+  image: landscaper_web:latest
+  volumes:
+   - /path/to/landscaper/landscaper.cfg:/landscaper/landscaper.cfg
+  expose:  
+   - "9001"
+  ports:
+   - "9001:9001"
+  depends_on:
+   - neo4j

@@ -16,6 +16,8 @@ Utilities used for testing.
 """
 import collections
 import ConfigParser
+import random
+import string
 import os
 
 EdgeChange = collections.namedtuple('EdgeChange', 'edge original changed')
@@ -109,8 +111,11 @@ def create_test_config():
     to the testing data directory.
     """
     gdb_env = "USE_TEST_GDB"
-    if gdb_env not in os.environ and os.environ[gdb_env].lower() != "true":
+    if gdb_env not in os.environ:
         msg = "Set '{}' to true, to run these tests".format(gdb_env)
+        raise AttributeError(msg)
+    if os.environ[gdb_env].lower() != "true":
+        msg = "Functionality for setting {} to false not ready".format(gdb_env)
         raise AttributeError(msg)
 
     user_env = "NEO4J_USER"
@@ -123,11 +128,19 @@ def create_test_config():
 
     username = os.environ[user_env]
     password = os.environ[pass_env]
-
     test_config = {"neo4j": {"url": "http://localhost:7474/db/data",
                              "user": username, "password": password},
-                   "general": {"graph_db": "Neo4jGDB",
-                               "event_listeners": "", "collectors": ""}}
+                   "general": {"graph_db": "Neo4jGDB", "flush": False,
+                               "event_listeners": "", "collectors": ""},
+                   "physical_layer": {"machines": "machine-A"}}
+
+    # Add RabbitMQ listener configs
+    test_config['rabbitmq'] = {}
+    conf_vars = ['rb_name', 'rb_password', 'rb_host', 'rb_port', 'topic',
+                 'notification_queue', 'exchanges']
+    for conf_var in conf_vars:
+        test_config['rabbitmq'][conf_var] = random_string(8)
+
     write_config(test_config, TEST_CONFIG_FILE)
 
 
@@ -137,3 +150,11 @@ def remove_test_config():
     """
     if os.path.isfile(TEST_CONFIG_FILE):
         os.remove(TEST_CONFIG_FILE)
+
+
+def random_string(length):
+    """
+    Generate a random string.
+    :param length: Length of the random string
+    """
+    return ''.join(random.choice(string.ascii_letters) for _ in range(length))

@@ -57,14 +57,15 @@ class GraphDB(object):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def update_node(self, node_id, identity, state, timestmp):
+    def update_node(self, node_id, timestamp, state=None, extra_attrs=None):
         """
         Updates the identity node by adding a new state node and expiring the
         previous state
         :param node_id: ID for the identity node.
-        :param identity: The node to update.
         :param state: The new state of the node.
         :param timestmp: Epoch timestamp of when the modification occurred.
+        :param extra_attrs: More attributes to add. These take priority over
+         state.
         :return: Instance of newly created node.
         """
         raise NotImplementedError
@@ -105,10 +106,14 @@ class GraphDB(object):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_nodes_by_properties(self, properties):
+    def get_nodes_by_properties(self, identity_props=None, state_props=None,
+                                timestamp=None, json=False):
         """
         Retrieves a list of nodes matching the properties supplied.
-        :param properties: Properties to query against.
+        :param identity_props: Properties to query against identity node.
+        :param state_props: Properties to query against state node.
+        :param timestamp: Query only nodes that were alive at this time.
+        :param json: Returns in json format if set to true.
         :return: Nodes matching the properties.
         """
         raise NotImplementedError

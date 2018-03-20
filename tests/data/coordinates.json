@@ -1,35 +1,53 @@
 {
-  "machine": [
-   {
-	  "name": "machine-A",
-	  "latitude": 50.759,
-	  "longitude": 7.45568
-   },
-   {
-     "name": "machine-B",
-     "latitude": 40.45712,
-     "longitude": -78.254
-   },
-   {
-     "name": "machine-C",
-     "latitude": 53.374641,
-     "longitude": -6.522470
-   }],
-  "switch": [
-    {
-      "name": "switch-K",
-      "latitude": -20.78,
-      "longitude": 130.5644
-    },
-    {
-      "name": "switch-E",
-      "latitude": 35.45,
-      "longitude": 134.84
-    },
-    {
-      "name": "switch-V",
-      "latitude": -3.2,
-      "longitude": -40
-    }
-  ]
+	"type":"FeatureCollection",
+	"features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [7.45568, 50.759]
+        },
+        "properties": {
+          "name": "machine-A"
+        }
+      },
+
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [-78.254, 40.45712]
+        },
+        "properties": {
+          "name": "machine-B"
+        }
+      },
+
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]
+            ]
+        },
+        "properties": {
+          "name": "machine-C"
+        }
+      },
+
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+            [100.0, 1.0], [100.0, 0.0] ]
+            ]
+        },
+        "properties": {
+          "name": "machine-D"
+        }
+      }
+	]
 }

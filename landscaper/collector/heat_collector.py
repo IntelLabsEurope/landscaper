@@ -50,7 +50,7 @@ class HeatCollectorV1(base.Collector):
         stack's vms.
         """
 
-        LOG.info("Adding Heat components to the landscape.")
+        LOG.info("[HEAT] Adding Heat components to the landscape.")
         now_ts = time.time()
         for stack in self.heat.stacks.list():
             if stack.stack_status == 'CREATE_COMPLETE':
@@ -112,9 +112,9 @@ class HeatCollectorV1(base.Collector):
         :param stack: Heat stack object.
         :param timestmp: timestamp.
         """
-        identity, state = self._create_heat_stack_nodes(stack)
+        _, state = self._create_heat_stack_nodes(stack)
         uuid = stack.id
-        stack_node = self.graph_db.update_node(uuid, identity, state, timestmp)
+        stack_node, _ = self.graph_db.update_node(uuid, state, timestmp)
         if stack_node is not None:
             resources = self._get_resources(uuid)
             for resource in resources:

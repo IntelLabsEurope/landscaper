@@ -46,7 +46,8 @@ class EventsManager(object):
         if event not in self.events:
             LOG.error("Unknown event: %s. Not Registered.", event)
         else:
-            self.events.get(event).append(collector)
+            if collector not in self.events.get(event):
+                self.events.get(event).append(collector)
 
     def dispatch_event(self, event, event_body=None):
         """

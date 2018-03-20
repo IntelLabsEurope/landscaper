@@ -14,7 +14,6 @@
 """"
 Integration tests for get_node_by_uuid_web and get_node_by_properties_web
 """
-import os
 import json
 import logging
 import unittest
@@ -29,7 +28,7 @@ class TestGetNodeByUUID(unittest.TestCase):
     """
     Integration Tests for get_node_by_uuid_web
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
 
     @classmethod
     def setUpClass(cls):
@@ -43,9 +42,13 @@ class TestGetNodeByUUID(unittest.TestCase):
 
     def setUp(self):
         manager = landscape_manager.LandscapeManager(utils.TEST_CONFIG_FILE)
+
         self.graph_db = manager.graph_db
         self.graph_db.delete_all()
         self.graph_db.load_test_landscape(self.landscape_file)
+
+    def tearDown(self):
+        self.graph_db.delete_all()
 
     def test_node_structure(self):
         """
@@ -54,7 +57,7 @@ class TestGetNodeByUUID(unittest.TestCase):
         node = "96449fb1-0143-4d61-9d84-0a2fd0aa30c1"
         node_structure = {"category": "network", "layer": "virtual",
                           "name": "96449fb1-0143-4d61-9d84-0a2fd0aa30c1",
-                          "ip": "10.1.22.169", "mac": "fa:16:3e:7c:5c:66",
+                          "ip": "10.2.32.169", "mac": "fa:16:3e:7c:5c:66",
                           "type": "vnic"}
         graph_serialised = self.graph_db.get_node_by_uuid_web(node)
         graph = json_graph.node_link_graph(json.loads(graph_serialised),
@@ -63,7 +66,7 @@ class TestGetNodeByUUID(unittest.TestCase):
         self.assertEqual(graph.node[node], node_structure)
 
     def test_structure_renamed(self):
-        """"
+        """
         Ensure the node structure is correct where attributes have been
         renamed.
         """
@@ -82,7 +85,7 @@ class TestGetNodeByProperties(unittest.TestCase):
     """
     Integration Tests for get_node_by_properties_web
     """
-    landscape_file = "tests/data/test_landscape.json"
+    landscape_file = "tests/data/test_landscape_with_states.json"
 
     @classmethod
     def setUpClass(cls):
@@ -99,6 +102,9 @@ class TestGetNodeByProperties(unittest.TestCase):
         self.graph_db = manager.graph_db
         self.graph_db.delete_all()
         self.graph_db.load_test_landscape(self.landscape_file)
+
+    def tearDown(self):
+        self.graph_db.delete_all()
 
     def test_all_stacks(self):
         """

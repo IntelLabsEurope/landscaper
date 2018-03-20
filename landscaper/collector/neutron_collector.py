@@ -56,7 +56,7 @@ class NeutronCollectorV2(base.Collector):
         """
         Adds all neutron ports, nets and subnets to the graph database.
         """
-        LOG.info("Adding Neutron components to the landscape.")
+        LOG.info("[NEUTRON] Adding Neutron components to the landscape.")
         now_ts = time.time()
         # Collect Networks
         networks = self.neutron.list_networks()
@@ -86,7 +86,7 @@ class NeutronCollectorV2(base.Collector):
         :param event: Neutron event type.
         :param body: Event details.
         """
-        LOG.info("Neutron event received: %s", event)
+        LOG.info("[NEUTRON] Neutron event received: %s", event)
         now_ts = time.time()
         net_events, port_events, subnet_events = self._events(categories=True)
 
@@ -186,12 +186,12 @@ class NeutronCollectorV2(base.Collector):
         """
         Update existing subnet node in the database.
         """
-        identity, state = self._create_subnet_nodes(cidr)
+        _, state = self._create_subnet_nodes(cidr)
         net_node = self._get_net_node(net_id)
 
         if net_node is not None:
-            subnet_node = self.graph_db.update_node(subnet_id, identity,
-                                                    state, timestamp)
+            subnet_node, _ = self.graph_db.update_node(subnet_id, timestamp,
+                                                       state)
             self.graph_db.update_edge(subnet_node, net_node,
                                       timestamp, "REQUIRES")
 
@@ -214,8 +214,8 @@ class NeutronCollectorV2(base.Collector):
         """
         Update existing network node in the database.
         """
-        identity, state = self._create_network_nodes(name)
-        self.graph_db.update_node(network_id, identity, state, timestamp)
+        _, state = self._create_network_nodes(name)
+        self.graph_db.update_node(network_id, timestamp, state)
 
     def _delete_network(self, network_id, timestamp):
         """
@@ -244,9 +244,9 @@ class NeutronCollectorV2(base.Collector):
         """
         Update existing port node in the database.
         """
-        identity, state = self._create_port_nodes(mac, ip_add)
+        _, state = self._create_port_nodes(mac, ip_add)
         instance = self._get_device_node(device_id)
-        port = self.graph_db.update_node(port_id, identity, state, timestmp)
+        port, _ = self.graph_db.update_node(port_id, timestmp, state)
 
         if port is not None:
             if instance is not None:
