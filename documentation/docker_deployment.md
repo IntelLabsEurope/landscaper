@@ -13,7 +13,7 @@ home
 ```
 
 3. Update landscaper.cfg on the host machine with the appropriate user and password for neo4j. This must be different to the default neo4j/neo4j user/pass.
-4. To access neo4j from the container, change the neo4j URL in landscaper.cfg from http://localhost:7474/db/data to http://neo4j:7474/db/data
+4. To configure access neo4j from the container, change the port of the neo4j URL in landscaper.cfg from http://localhost:7474/db/data (the port chosen should match the one used in the docker-compose file for neo4j 7475 in the example below)
 
 ### Building the Image
 
@@ -82,7 +82,7 @@ sudo docker-compose up
 ```
 Web API is accessible at http://localhost:9001
 
-The neo4j interface will be at http://localhost:7474
+The neo4j interface will be at http://localhost:7475
 
 In default configuration a simple cypher query to neo4j should return the example 2 node landscape
 ```
