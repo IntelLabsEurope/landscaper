@@ -608,7 +608,7 @@ class Neo4jGDB(base.GraphDB):
         url = self.conf_manager.get_neo4j_url()
         user, password = self.conf_manager.get_neo4j_credentials()
         self.graph_db_refreshed = time.time()
-        return Graph(url, user=user, password=password, bolt=False)
+        return Graph(url, user=user, password=password, bolt=True)
 
     def _unique_attribute_names(self, immutable_keys, attributes, prefix):
         """
