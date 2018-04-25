@@ -6,7 +6,7 @@ services:
   image: landscaper_base:latest
 
  neo4j:
-  image: neo4j:3.0
+  image: neo4j:2.3.12
   volumes:
    - <local_landscape_path>/neo4j_data:/data
   ports:
@@ -46,3 +46,4 @@ services:
   depends_on:
    - neo4j
    - landscaper
+  network_mode: "host"
