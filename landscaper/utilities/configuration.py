@@ -155,7 +155,12 @@ class ConfigurationManager(object):
         """
         user = self.get_variable('neo4j', 'user')
         password = self.get_variable('neo4j', 'password')
-        return user, password
+        use_bolt = self.get_variable('neo4j', 'use_bolt')
+        if use_bolt.lower() == "false":
+            use_bolt = False
+        else:
+            use_bolt = True
+        return user, password, use_bolt
 
     def get_rabbitmq_info(self):
         """

@@ -6,30 +6,24 @@ services:
   image: landscaper_base:latest
 
  neo4j:
-  image: neo4j:3.0
+  image: neo4j:2.3.12
   volumes:
-   - <local_path>/neo4j_data:/data
+   - <local_landscape_path>/neo4j_data:/data
   ports:
    - "7475:7474" # expose the port for the console ui
   environment:
    - NEO4J_AUTH=neo4j/password # neo4j requires change from default password, should reflect landscape.cfg
   hostname:
     neo4j
-  healthcheck:
-   test: ["CMD-SHELL", "curl -f http://neo4j:7474 && echo 'OK'"]
-   interval: 5s
-   timeout: 3s
-   retries: 25
 
  landscaper:
   build: ./landscaper
   image: landscaper:latest
   volumes:
-   - <local_path>/landscaper/data:/landscaper/data
-   - <local_path>/landscaper/landscaper.cfg:/landscaper/landscaper.cfg
+   - <local_landscape_path>/data:/landscaper/data
+   - <local_landscape_path>/landscaper.cfg:/landscaper/landscaper.cfg
   depends_on:
-   neo4j:
-    condition: service_healthy
+    - "neo4j"
   environment:
     - OS_TENANT_NAME=
     - OS_PROJECT_NAME=
@@ -38,12 +32,13 @@ services:
     - OS_PASSWORD=
     - OS_AUTH_URL=
   network_mode: "host"
+  command: ["/start.sh", "http://localhost:7475"]
 
  web:
   build: ./landscaper_api
   image: landscaper_web:latest
   volumes:
-   - <local_path>/landscaper/landscaper.cfg:/landscaper/landscaper.cfg
+   - <local_landscape_path>/landscaper.cfg:/landscaper/landscaper.cfg
   expose:
    - "9001"
   ports:
@@ -51,3 +46,4 @@ services:
   depends_on:
    - neo4j
    - landscaper
+  network_mode: "host"

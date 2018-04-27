@@ -606,9 +606,9 @@ class Neo4jGDB(base.GraphDB):
         :return:  A connection to the NEO4J Database.
         """
         url = self.conf_manager.get_neo4j_url()
-        user, password = self.conf_manager.get_neo4j_credentials()
+        user, password, use_bolt = self.conf_manager.get_neo4j_credentials()
         self.graph_db_refreshed = time.time()
-        return Graph(url, user=user, password=password, bolt=True)
+        return Graph(url, user=user, password=password, bolt=use_bolt)
 
     def _unique_attribute_names(self, immutable_keys, attributes, prefix):
         """
