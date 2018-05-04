@@ -71,19 +71,21 @@ class CimiPhysicalCollector(base.Collector):
         :return: True if file successfully save, False if errors encountered
         """
         try:
-            hwloc_path = path.join(paths.DATA_DIR, device["id"][7:] + "_hwloc.xml")
-            hwloc = device["hwloc"]
-            if hwloc is None:
-                LOG.error("hwLoc data has not been set for this device: " + device.id + ". No HwLoc file will be saved.")
-                return False
-            self._write_to_file(hwloc_path, hwloc)
-
-            cpu_path = path.join(paths.DATA_DIR, device["id"][7:] + "_cpu_info.txt")
+            cpu_path = path.join(paths.DATA_DIR, device["id"][7:] + "_cpuinfo.txt")
             cpu_info = device["cpuinfo"]
             if cpu_info is None:
                 LOG.error("CPU_info data has not been set for this device: " + device.id + ". No CPU_info file will be saved.")
                 return False
             self._write_to_file(cpu_path, cpu_info)
+
+            hwloc_path = path.join(paths.DATA_DIR, device["id"][7:] + "_hwloc.xml")
+            hwloc = device["hwloc"]
+            if hwloc is None:
+                LOG.error(
+                    "hwLoc data has not been set for this device: " + device.id + ". No HwLoc file will be saved.")
+                return False
+            self._write_to_file(hwloc_path, hwloc)
+
         except:
             LOG.error("General Error hwloc/cpuinfo for device id: " + device.id, sys.exc_info()[0])
             return False
