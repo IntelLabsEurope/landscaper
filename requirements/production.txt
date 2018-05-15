@@ -8,3 +8,4 @@ python-novaclient==7.1.0
 gunicorn==19.7.1
 paramiko==2.4.0
 pyinotify
+docker
