@@ -138,7 +138,7 @@ class ContainerCollectorV1(base.Collector):
 
         # Creates the edge between the instance and the machine.
         if inst_node is not None and machine is not None:
-            self.graph_db.add_edge(machine, inst_node, timestamp, "HOSTS")
+            self.graph_db.add_edge(inst_node, machine, timestamp, "HOSTS")
 
     def _update_instance(self, uuid, vcpus, mem, name, hostname, timestamp):
         """

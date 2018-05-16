@@ -221,13 +221,13 @@ class DockerCollectorV2(base.Collector):
                 container_node = self.graph_db.get_node_by_uuid(container_id)
                 service_node = self.graph_db.get_node_by_uuid(service_id)
                 if docker_node and container_node:
-                    self.graph_db.add_edge(docker_node, container_node,
+                    self.graph_db.add_edge(container_node, docker_node,
                                            timestamp, RELS['docker_container'])
                 if container_node and task_node:
-                    self.graph_db.add_edge(container_node, task_node,
+                    self.graph_db.add_edge(task_node, container_node,
                                            timestamp, RELS['container_task'])
                 if task_node and service_node:
-                    self.graph_db.add_edge(task_node, service_node, timestamp,
+                    self.graph_db.add_edge(service_node, task_node, timestamp,
                                            RELS['task_service'])
 
     def _update_service(self, service, timestmp, body):
