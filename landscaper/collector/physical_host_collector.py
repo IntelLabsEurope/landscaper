@@ -113,7 +113,7 @@ class HWLocCollector(base.Collector):
         :param node: THe id of the node.
         """
         coords = coordinates.component_coordinates(node)
-        graph.node[node]["attributes"]["coordinates"] = coords
+        graph.node[node]["attributes"]["geo"] = coords
 
     def _get_hwloc(self, machine):
         """
