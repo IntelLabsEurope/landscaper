@@ -15,8 +15,8 @@
 from os import path
 import sys
 import requests
+import xml.etree.ElementTree as Et
 from landscaper.collector import base
-from landscaper.collector.physical_host_collector import HWLocCollector
 from landscaper.common import LOG
 from landscaper import paths
 from landscaper.utilities import configuration
@@ -33,8 +33,7 @@ class CimiPhysicalCollector(base.Collector):
     saves files in the Data Directory.
     """
     def __init__(self, graph_db, conf_manager, events_manager, events=None):
-        super(CimiPhysicalCollector, self).__init__(graph_db, conf_manager,
-                                                events_manager, events=None)
+        super(CimiPhysicalCollector, self).__init__(graph_db, conf_manager, events_manager, events=None)
         self.cnf = conf_manager
 
     def init_graph_db(self):
@@ -46,7 +45,7 @@ class CimiPhysicalCollector(base.Collector):
         devices_list = list()
 
         for device in self.get_devices():
-            if self.generate_files(device) :
+            if self.generate_files(device):
                 devices_list.append(device["id"][7:]) #eg, device/737fe63b-2a34-44fe-9177-3aa6284ba2f5
 
         # write the device list to the config file
@@ -71,6 +70,7 @@ class CimiPhysicalCollector(base.Collector):
         :return: True if file successfully save, False if errors encountered
         """
         try:
+            # save the cpu info to file
             cpu_path = path.join(paths.DATA_DIR, device["id"][7:] + "_cpuinfo.txt")
             cpu_info = device["cpuinfo"]
             if cpu_info is None:
@@ -78,12 +78,27 @@ class CimiPhysicalCollector(base.Collector):
                 return False
             self._write_to_file(cpu_path, cpu_info)
 
+            # save the hwloc to file
             hwloc_path = path.join(paths.DATA_DIR, device["id"][7:] + "_hwloc.xml")
             hwloc = device["hwloc"]
             if hwloc is None:
                 LOG.error(
                     "hwLoc data has not been set for this device: " + device.id + ". No HwLoc file will be saved.")
                 return False
+
+            # add the ip address to the hwloc file
+            if device["ethernetAddress"]:
+                ipaddress = self._get_ipaddress()
+
+                doc_root = Et.fromstring(hwloc)
+                for child in doc_root:
+                    if child.tag == "object" and child.attrib["type"] == "Machine":
+                        att = dict()
+                        att["name"] = "ipaddress"
+                        att["value"] = ipaddress
+                        Et.SubElement(child, "info", att)
+                        hwloc = Et.dump(doc_root)
+                        break
             self._write_to_file(hwloc_path, hwloc)
 
         except:
@@ -111,6 +126,22 @@ class CimiPhysicalCollector(base.Collector):
         except:
             LOG.error('Exception', sys.exc_info()[0])
             return None
+
+    def _get_ipaddress(self, teststring):
+        """
+        Extracts the first instance of address from the supplied param
+        :param teststring: assumes the following format: "[snic(family=<AddressFamily.AF_INET: 2>,
+                address='172.17.0.3', netmask='255.255.0.0', broadcast='172.17.255.255', ptp=None),
+                snic(family=<AddressFamily.AF_PACKET: 17>, address='02:42:ac:11:00:03', netmask=None,
+                broadcast='ff:ff:ff:ff:ff:ff', ptp=None)]"
+        :return: string
+        """
+        arr = teststring.split(",")
+        for item in arr:
+            tmparr = item.split("=")
+            if tmparr.__len__() > 1:
+                if tmparr[0].strip() == "address":
+                    return tmparr[1]
 
     @staticmethod
     def _write_to_file(filename, file_content):
