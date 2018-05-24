@@ -191,6 +191,27 @@ def add_new_device():
 
     return Response(status=201, mimetype=MIME)
 
+@APP.route("/service", methods=['POST'])
+def add_new_service():
+    """
+    Adds a new service to the graph
+    """
+    LOG.info("Accessing URL %s", request.url)
+    now_ts = time.time()
+    error_log = []
+    if not request.data:
+        err_msg = "No device data in body"
+        abort(400, err_msg)
+
+    LOG.debug(request.data)
+    data = ast.literal_eval(request.data)
+
+    if error_log:
+        err_msg = "Error with the following nodes:" + str(error_log)
+        abort(400, err_msg)
+
+    return Response(status=201, mimetype=MIME)
+
 def _bool(value):
     """
     Determine if the value supplied can be interpreted as bool.
