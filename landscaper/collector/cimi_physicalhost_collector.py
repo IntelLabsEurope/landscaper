@@ -27,6 +27,8 @@ CONFIG_CIMI_URL = "cimi_url"
 CONFIG_SECTION_PHYSICAL = 'physical_layer'
 CONFIG_VARIABLE_MACHINES = 'machines'
 
+MF2C_PATH_VALUE = "mf2c_device_id"
+
 class CimiPhysicalCollector(base.Collector):
     """
     Physical Layer collector that queries CIMI for hwloc and cpu_info files and
@@ -45,8 +47,9 @@ class CimiPhysicalCollector(base.Collector):
         devices_list = list()
 
         for device in self.get_devices():
-            if self.generate_files(device):
-                devices_list.append(device["id"][7:]) #eg, device/737fe63b-2a34-44fe-9177-3aa6284ba2f5
+            filed_saved, hostname = self.generate_files(device)
+            if filed_saved:
+                devices_list.append(hostname)
 
         # write the device list to the config file
         device_csv = ','.join(str(x) for x in devices_list)
@@ -66,45 +69,63 @@ class CimiPhysicalCollector(base.Collector):
     def generate_files(self, device):
         """
         Queries the hwloc and cpuinfo methods and writes them to a file
-        :param device: model_mf2c.classes.Device used to query the hwloc and cpu_info methods
-        :return: True if file successfully save, False if errors encountered
+        :param device: CIMI Device object containing hwloc and cpu_info methods
+        :return: True if file successfully saved and hostname, False if errors encountered
         """
+        hostname = ""
         try:
-            # save the cpu info to file
-            cpu_path = path.join(paths.DATA_DIR, device["id"][7:] + "_cpuinfo.txt")
-            cpu_info = device["cpuinfo"]
-            if cpu_info is None:
-                LOG.error("CPU_info data has not been set for this device: " + device.id + ". No CPU_info file will be saved.")
-                return False
-            self._write_to_file(cpu_path, cpu_info)
-
-            # save the hwloc to file
-            hwloc_path = path.join(paths.DATA_DIR, device["id"][7:] + "_hwloc.xml")
             hwloc = device["hwloc"]
             if hwloc is None:
                 LOG.error(
                     "hwLoc data has not been set for this device: " + device.id + ". No HwLoc file will be saved.")
                 return False
 
-            # add the ip address to the hwloc file
-            if device["ethernetAddress"]:
-                ipaddress = self._get_ipaddress()
+            cpu_info = device["cpuinfo"]
+            if cpu_info is None:
+                LOG.error(
+                    "CPU_info data has not been set for this device: " + device.id + ". No CPU_info file will be saved.")
+                return False
 
-                doc_root = Et.fromstring(hwloc)
-                for child in doc_root:
-                    if child.tag == "object" and child.attrib["type"] == "Machine":
-                        att = dict()
-                        att["name"] = "ipaddress"
-                        att["value"] = ipaddress
-                        Et.SubElement(child, "info", att)
-                        hwloc = Et.dump(doc_root)
-                        break
+            device_id = device["id"][7:]  # eg, device/737fe63b-2a34-44fe-9177-3aa6284ba2f5
+
+            doc_root = Et.fromstring(hwloc)
+            for child in doc_root:
+                if child.tag == "object" and child.attrib["type"] == "Machine":
+                    # get hostname
+                    for info in child.iter("info"):
+                        if info.attrib["name"] == "HostName":
+                            hostname = info.attrib["value"]
+                            break
+
+                    # add mf2c device id to hwloc file
+                    device_id_att = dict()
+                    device_id_att["name"] = MF2C_PATH_VALUE
+                    device_id_att["value"] = device_id
+                    Et.SubElement(child, "info", device_id_att)
+
+                    # add device's ip address to the hwloc file
+                    if device["ethernetAddress"]:
+                        ipaddress = self._get_ipaddress(device["ethernetAddress"])
+                        ipaddress_att = dict()
+                        ipaddress_att["name"] = "ipaddress"
+                        ipaddress_att["value"] = ipaddress
+                        Et.SubElement(child, "info", ipaddress_att)
+
+                    hwloc = Et.tostring(doc_root)
+                    break
+
+            # save the cpu info to file
+            cpu_path = path.join(paths.DATA_DIR, hostname + "_cpuinfo.txt")
+            self._write_to_file(cpu_path, cpu_info)
+
+            # save the hwloc to file
+            hwloc_path = path.join(paths.DATA_DIR, hostname + "_hwloc.xml")
             self._write_to_file(hwloc_path, hwloc)
 
         except:
             LOG.error("General Error hwloc/cpuinfo for device id: " + device.id, sys.exc_info()[0])
-            return False
-        return True
+            return False, None
+        return True, hostname
 
     # returns all instances of devices
     def get_devices(self):
@@ -127,22 +148,26 @@ class CimiPhysicalCollector(base.Collector):
             LOG.error('Exception', sys.exc_info()[0])
             return None
 
-    def _get_ipaddress(self, teststring):
+    def _get_ipaddress(self, input_string):
         """
         Extracts the first instance of address from the supplied param
-        :param teststring: assumes the following format: "[snic(family=<AddressFamily.AF_INET: 2>,
+        :param input_string: assumes the following format: "[snic(family=<AddressFamily.AF_INET: 2>,
                 address='172.17.0.3', netmask='255.255.0.0', broadcast='172.17.255.255', ptp=None),
                 snic(family=<AddressFamily.AF_PACKET: 17>, address='02:42:ac:11:00:03', netmask=None,
                 broadcast='ff:ff:ff:ff:ff:ff', ptp=None)]"
         :return: string
         """
-        arr = teststring.split(",")
+        ip_address = None
+        arr = input_string.split(",")
         for item in arr:
             tmparr = item.split("=")
             if tmparr.__len__() > 1:
                 if tmparr[0].strip() == "address":
-                    return tmparr[1]
-
+                    ip_address = tmparr[1]
+                    break
+        # strip leading/ending quotes
+        return ip_address[1:-1]
+ 
     @staticmethod
     def _write_to_file(filename, file_content):
         """
@@ -155,7 +180,7 @@ class CimiPhysicalCollector(base.Collector):
         file_handler.close()
 
 if __name__ == "__main__":
-    #from landscaper.utilities import configuration
+    # from landscaper.utilities import configuration
     conf_manager = configuration.ConfigurationManager()
     conf_manager.add_section('physical_layer')
     conf_manager.add_section('general')
