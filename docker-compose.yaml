@@ -1,0 +1,56 @@
+version: '2.1'
+services:
+
+ base:
+  build: ./
+  image: landscaper_base:latest
+
+ neo4j:
+  image: neo4j:2.3.12
+  volumes:
+   - /home/iolie/Dev/landscaper_test_docker_centralized/landscaping/neo4j_data:/data
+  ports:
+   - "7475:7474" # expose the port for the console ui
+  environment:
+   - NEO4J_AUTH=neo4j/apexlake # neo4j requires change from default password, should reflect landscape.cfg
+  hostname:
+    neo4j
+  network_mode: "host"
+
+ landscaper:
+  build: ./
+  image: landscaper:latest
+  volumes:
+   - /home/iolie/Dev/landscaper_test_docker_centralized/landscaping/data:/landscaper/data
+   - /home/iolie/Dev/landscaper_test_docker_centralized/landscaping/landscaper.cfg:/landscaper/landscaper.cfg
+  depends_on:
+    - "neo4j"
+  environment:
+    - PYTHONPATH=/landscaper
+    - OS_TENANT_NAME=
+    - OS_PROJECT_NAME=
+    - OS_TENANT_ID=
+    - OS_USERNAME=
+    - OS_PASSWORD=
+    - OS_AUTH_URL=
+  network_mode: "host"
+  working_dir: /landscaper
+  command: ["./start.sh", "http://localhost:7474"]
+
+ web:
+  build: ./
+  image: landscaper_web:latest
+  volumes:
+   - /home/iolie/Dev/landscaper_test_docker_centralized/landscaping/landscaper.cfg:/landscaper/landscaper.cfg
+  environment:
+    - PYTHONPATH=/landscaper
+  expose:
+   - "9001"
+  ports:
+   - "9001:9001"
+  depends_on:
+   - neo4j
+   - landscaper
+  network_mode: "host"
+  working_dir: /landscaper/landscaper/web
+  command: ["/usr/local/bin/gunicorn", "-b", "0.0.0.0:9001", "-w", "2", "application:APP"]
