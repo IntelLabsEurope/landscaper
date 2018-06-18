@@ -4,7 +4,7 @@ FROM ubuntu:16.04
 
 RUN apt-get update && apt-get install -y git python python-pip python-dev python-pycurl libssl-dev libcurl4-openssl-dev netcat curl
 
-RUN git clone "https://github.com/IntelLabsEurope/landscaper.git"
+ADD ./ /landscaper/
 
 # Set the working directory to /app
 WORKDIR /landscaper

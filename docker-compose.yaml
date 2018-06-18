@@ -2,7 +2,7 @@ version: '2.1'
 services:
 
  base:
-  build: ./base
+  build: ./
   image: landscaper_base:latest
 
  neo4j:
@@ -15,9 +15,10 @@ services:
    - NEO4J_AUTH=neo4j/password # neo4j requires change from default password, should reflect landscape.cfg
   hostname:
     neo4j
+  network_mode: "host"
 
  landscaper:
-  build: ./landscaper
+  build: ./
   image: landscaper:latest
   volumes:
    - <local_landscape_path>/data:/landscaper/data
@@ -25,6 +26,7 @@ services:
   depends_on:
     - "neo4j"
   environment:
+    - PYTHONPATH=/landscaper
     - OS_TENANT_NAME=
     - OS_PROJECT_NAME=
     - OS_TENANT_ID=
@@ -32,13 +34,16 @@ services:
     - OS_PASSWORD=
     - OS_AUTH_URL=
   network_mode: "host"
-  command: ["/start.sh", "http://localhost:7475"]
+  working_dir: /landscaper
+  command: ["./start.sh", "http://localhost:7474"]
 
  web:
-  build: ./landscaper_api
+  build: ./
   image: landscaper_web:latest
   volumes:
    - <local_landscape_path>/landscaper.cfg:/landscaper/landscaper.cfg
+  environment:
+    - PYTHONPATH=/landscaper
   expose:
    - "9001"
   ports:
@@ -47,3 +52,5 @@ services:
    - neo4j
    - landscaper
   network_mode: "host"
+  working_dir: /landscaper/landscaper/web
+  command: ["/usr/local/bin/gunicorn", "-b", "0.0.0.0:9001", "-w", "2", "application:APP"]

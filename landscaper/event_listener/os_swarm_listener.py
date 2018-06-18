@@ -20,7 +20,6 @@ import time
 import docker
 import json
 import requests
-
 from landscaper.common import LOG
 from landscaper.event_listener import base
 
@@ -77,14 +76,13 @@ class OSSwarmListener(base.EventListener):
         :return: the Docker client relative to the manager.
         """
         client = self._get_client()
-        nodes = client.nodes(filters={'role': 'manager'})
+        nodes = client.nodes.list(filters={'role': 'manager'})
         if nodes:
-            if client.info().get("Swarm", {}).get("NodeID", "") == nodes[
-                                0].get("ID"):
+            if client.info()["Swarm"]["NodeID"] == nodes[0].attrs["ID"]:
                 return client
             else:
-                self.docker_conf[1] = nodes[0]["Status"]["Addr"]
-                return docker.Client(
+                self.docker_conf[1] = nodes[0].attrs["Status"]["Addr"]
+                return docker.DockerClient(
                     base_url=OSSwarmListener._get_connection_string()
                 )
 
@@ -101,13 +99,15 @@ class OSSwarmListener(base.EventListener):
         else:
             tls_config = False
         try:
-            url = OSSwarmListener._get_connection_string(self.docker_conf)
-            client = docker.Client(base_url=url, tls=tls_config)
-            client.info()
+            client = docker.DockerClient(
+                base_url=OSSwarmListener._get_connection_string(self.docker_conf),
+                tls=tls_config
+            )
+            #client = docker.from_env()
             return client
         except requests.ConnectionError as e:
+            LOG.error('Please check Configuration file or Service availability')
             LOG.error(e.message)
-            LOG.error('Check Configuration file or Service availability')
             exit()
 
     def _cb_event(self, body):

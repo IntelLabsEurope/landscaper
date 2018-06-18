@@ -77,6 +77,7 @@ def get_subgraph(node_id):
     # Fetch the subgraph.
     subgraph = LANDSCAPE.graph_db.get_subgraph(node_id, timestmp=timestamp,
                                                timeframe=time_frame)
+
     if not subgraph:
         err_msg = "Node with ID '{}', not in the landscape.".format(node_id)
         LOG.error(err_msg)
@@ -117,16 +118,14 @@ def get_node_by_properties():
     """
     LOG.info("Retrieving node by props with url %s", request.url)
     timestamp = request.args.get("timestamp") or time.time()
-    time_frame = request.args.get("timeframe", 0)
-    properies_string = request.args.get("properties")
-    if not properies_string:
+    properties_string = request.args.get("properties")
+    if not properties_string:
         err_msg = "Properties must be specified."
         LOG.warn(err_msg)
         abort(400, err_msg)
-    properties = ast.literal_eval(properies_string)
+    properties = ast.literal_eval(properties_string)
     graph = LANDSCAPE.graph_db.get_node_by_properties_web(properties,
-                                                          timestamp,
-                                                          time_frame)
+                                                          timestamp)
     return Response(graph, mimetype=MIME)
 
 
@@ -159,6 +158,59 @@ def put_geolocation():
 
     return Response(status=200, mimetype=MIME)
 
+
+@APP.route("/device", methods=['POST'])
+def add_new_device():
+    """
+    Adds a new device to the physical layer
+    """
+    LOG.info("Accessing URL %s", request.url)
+    now_ts = time.time()
+    error_log = []
+    if not request.data:
+        err_msg = "No device data in body"
+        abort(400, err_msg)
+
+    LOG.debug(request.data)
+    data = ast.literal_eval(request.data)
+
+    # get config manager
+    from landscaper.utilities import configuration
+    conf_manager = configuration.ConfigurationManager()
+    conf_manager.add_section('physical_layer')
+    conf_manager.add_section('general')
+
+    # save file to disk
+    from landscaper.collector.cimi_physicalhost_collector import CimiPhysicalCollector
+    cimi_updater = CimiPhysicalCollector(None, conf_manager, None, None)
+    cimi_updater.generate_files(data)
+
+    if error_log:
+        err_msg = "Error with the following nodes:" + str(error_log)
+        abort(400, err_msg)
+
+    return Response(status=201, mimetype=MIME)
+
+@APP.route("/service", methods=['POST'])
+def add_new_service():
+    """
+    Adds a new service to the graph
+    """
+    LOG.info("Accessing URL %s", request.url)
+    now_ts = time.time()
+    error_log = []
+    if not request.data:
+        err_msg = "No device data in body"
+        abort(400, err_msg)
+
+    LOG.debug(request.data)
+    data = ast.literal_eval(request.data)
+
+    if error_log:
+        err_msg = "Error with the following nodes:" + str(error_log)
+        abort(400, err_msg)
+
+    return Response(status=201, mimetype=MIME)
 
 def _bool(value):
     """

@@ -11,19 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Container collector.
-"""
 
+"""
+Openstack Nova collector.
+"""
+import threading
 import time
 
 from landscaper.collector import base
 from landscaper.common import LOG
+from landscaper.utilities import configuration
+from landscaper import events_manager
 import docker
 
 # Node Structure.
-IDENTITY_ATTR = {'layer': 'virtual', 'type': 'docker_node',
-                 'category': 'compute'}
+IDENTITY_ATTR = {'layer': 'virtual', 'type': 'docker_node', 'category': 'compute'}
 STATE_ATTR = {'node_name': None}
 
 # Events to listen for.
@@ -33,6 +35,7 @@ UPDATE_EVENTS = ['dockerhost.update']
 
 CONFIG_SECTION = 'docker'
 
+# TODO: handle multiple separate swarms
 
 class ContainerCollectorV1(base.Collector):
     """
@@ -42,11 +45,11 @@ class ContainerCollectorV1(base.Collector):
     def __init__(self, graph_db, conf_manager, event_manager):
         events = ADD_EVENTS + UPDATE_EVENTS + DELETE_EVENTS
         super(ContainerCollectorV1, self).__init__(graph_db, conf_manager,
-                                                   event_manager, events)
+                                              event_manager, events)
         self.graph_db = graph_db
         conf_manager.add_section(CONFIG_SECTION)
-        docker_cnf = conf_manager.get_swarm_info()
-        self.swarm_manager = ContainerCollectorV1.get_swarm_manager(docker_cnf)
+        docker_conf = conf_manager.get_swarm_info()
+        self.swarm_manager = ContainerCollectorV1.get_swarm_manager(docker_conf)
         self.instance_disks = {}
         self.instance_disk_lookup = {}
 
@@ -55,16 +58,17 @@ class ContainerCollectorV1(base.Collector):
         Adds the instances to the graph database and connects them to the
         relevant machine nodes.
         """
-        LOG.info("[CONTAINER] Adding Docker infrastructure To the landscape.")
+        LOG.info("ContainerCollector - Adding Docker infrastructure components to the landscape.")
         now_ts = time.time()
-        nodes = [x for x in self.swarm_manager.nodes() if
-                 x.get("Status", {}).get('State') == 'ready']
+        nodes = [x for x in self.swarm_manager.nodes.list() if
+                 x.attrs["Status"]["State"] == 'ready']
         for node in nodes:
-            node_id = node["ID"]
-            host = node['Description']['Hostname']
-            addr = node['ManagerStatus']['Addr']
+            node_id = node.attrs["ID"]
+            hostname = node.attrs['Description']['Hostname']
+            addr = node.attrs['ManagerStatus']['Addr']
             state_attributes = self._get_instance_info(node)
-            self._add_instance(node_id, addr, host, state_attributes, now_ts)
+            self._add_instance(node_id, addr, hostname, state_attributes, now_ts)
+        LOG.info("ContainerCollector - Docker infrastructure components added.")
 
     def update_graph_db(self, event, body):
         """
@@ -72,7 +76,7 @@ class ContainerCollectorV1(base.Collector):
         :param event: The event that has occurred.
         :param body: The details of the event that occurred.
         """
-        LOG.info("[CONTAINER] Processing event received: %s", event)
+        LOG.info("Processing event received: %s", event)
         now_ts = time.time()
         self._process_event(now_ts, event, body)
 
@@ -103,9 +107,11 @@ class ContainerCollectorV1(base.Collector):
         :param instance: Instance object.
         :return: # vcpus, memory size. name of instance, parent machine.
         """
+        # TODO: define what we do and dont want in the state node
         attrs = {}
-        desc = instance['Description']
+        desc = instance.attrs['Description']
         # flatten dict
+        # TODO: may be nested deeper, recurse it!
         for key in desc.keys():
             if isinstance(desc[key], dict):
                 sub_desc = desc[key]
@@ -115,7 +121,8 @@ class ContainerCollectorV1(base.Collector):
                 attrs[key] = desc[key]
         return attrs
 
-    def _add_instance(self, uuid, addr, hostname, state_attributes, timestamp):
+    # def _add_instance(self, uuid, vcpus, mem, name, hostname, timestamp):
+    def _add_instance(self, uuid, address, hostname, state_attributes, timestamp):
         """
         Adds a new instance to the graph database.
         :param uuid: Instance id.
@@ -131,7 +138,7 @@ class ContainerCollectorV1(base.Collector):
 
         # Creates the edge between the instance and the machine.
         if inst_node is not None and machine is not None:
-            self.graph_db.add_edge(machine, inst_node, timestamp, "HOSTS")
+            self.graph_db.add_edge(inst_node, machine, timestamp, "HOSTS")
 
     def _update_instance(self, uuid, vcpus, mem, name, hostname, timestamp):
         """
@@ -165,6 +172,7 @@ class ContainerCollectorV1(base.Collector):
         """
         machine = self.graph_db.get_node_by_uuid(hostname)
         return machine
+
 
     @staticmethod
     def _create_instance_nodes(uuid, state_attributes):
@@ -211,11 +219,12 @@ class ContainerCollectorV1(base.Collector):
             )
         else:
             tls_config = False
-        client = docker.Client(
-            base_url=ContainerCollectorV1.get_connection_string(docker_conf),
-            tls=tls_config
-        )
+
+        manager_address = ContainerCollectorV1.get_connection_string(docker_conf)
+        client = docker.DockerClient(base_url=manager_address, tls=tls_config)
+        #client = docker.from_env()
         try:
             return client
         except KeyError as err:
             raise err
+
