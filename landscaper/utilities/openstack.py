@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Authors:
+# KeystoneAuth v3 compatibility added by : Frank Griesinger (frank.griesinger@uni-ulm.de)
+#
 """
 Openstack connection class.
 """
@@ -31,6 +35,9 @@ SESSION_TIMEOUT = 3600
 OS_USERNAME = "OS_USERNAME"
 OS_PASSWORD = "OS_PASSWORD"
 OS_AUTH_URL = "OS_AUTH_URL"
+OS_PROJECT_ID = "OS_PROJECT_ID"
+OS_PROJECT_NAME = "OS_PROJECT_NAME"
+OS_USER_DOMAIN_NAME = "OS_USER_DOMAIN_NAME"
 OS_TENANT_ID = "OS_TENANT_ID"
 OS_TENANT_NAME = "OS_TENANT_NAME"
 
@@ -42,6 +49,11 @@ class OpenStackClientRegistry(object):
     def __init__(self):
         self.token_timestamp = 0
         self.session_timestamp = 0
+        auth_uri = os.environ.get(OS_AUTH_URL)
+        keystone_ver = '2'
+        if auth_uri.lower().replace('/', '').endswith('v3'):
+            keystone_ver = '3'
+        self.keystone_ver = keystone_ver
         self.keystone = None
         self.session = None
 
@@ -81,7 +93,10 @@ class OpenStackClientRegistry(object):
         """
         now = time.time()
         if (now - self.session_timestamp) > SESSION_TIMEOUT:
-            self.session = _get_session_keystone_v2()
+            if self.keystone_ver == '3':
+                self.session = _get_session_keystone_v3()
+            else:
+                self.session = _get_session_keystone_v2()
             self.session_timestamp = now
         return self.session
 
@@ -92,13 +107,37 @@ def _get_session_keystone_v2():
     """
     from keystoneauth1 import session
     from keystoneauth1.identity import v2
-    user, password, auth_uri, project_name = _get_connection_info()
+    user, password, auth_uri, project_name, project_id, user_domain_name = _get_connection_info('2')
     auth = v2.Password(username=user, password=password,
                        tenant_name=project_name, auth_url=auth_uri)
     return session.Session(auth=auth)
 
 
-def _get_connection_info():
+def _get_session_keystone_v3():
+    """
+    Returns a keystone session variable.
+    """
+    from keystoneauth1.identity import v3
+    from keystoneauth1 import session
+    from keystoneclient.v3 import client
+
+    user, password, auth_uri, project_name, project_id, user_domain_name = _get_connection_info('3')
+
+    auth = v3.Password(auth_url=auth_uri,
+                    username=user,
+                    password=password,
+                    project_id=project_id,
+                    user_domain_name=user_domain_name
+                    )
+    envs = [user, password, auth_uri, project_name, project_id, user_domain_name]
+    msg = "AUTH with user ({e[0]}), password (****), auth_uri ({e[2]}), " \
+          " project_name ({e[3]}), project_id ({e[4]}) " \
+          "and user_domain_name ({e[5]}).".format(e=envs)
+    LOG.info(msg)
+    sess = session.Session(auth=auth)
+
+    return sess;
+def _get_connection_info(keystone_ver):
     """
     Details to enable a connection to an openstack instance.  The Details are
     read from environment variables which are used with the openstack cli
@@ -107,12 +146,12 @@ def _get_connection_info():
     user = os.environ.get(OS_USERNAME)
     password = os.environ.get(OS_PASSWORD)
     auth_uri = os.environ.get(OS_AUTH_URL)
-    tenant_name = os.environ.get(OS_TENANT_NAME)
-    _check_conn_variables(user, password, auth_uri, tenant_name)
-    return user, password, auth_uri, tenant_name
-
-
-def _check_conn_variables(user, password, auth_uri, tenant_name):
+    project_name = os.environ.get(OS_PROJECT_NAME)
+    project_id = os.environ.get(OS_PROJECT_ID)
+    user_domain_name = os.environ.get(OS_USER_DOMAIN_NAME)
+    _check_conn_variables(user, password, auth_uri, project_name, project_id, user_domain_name, keystone_ver)
+    return user, password, auth_uri, project_name, project_id, user_domain_name
+def _check_conn_variables(user, password, auth_uri, project_name, project_id, user_domain_name, keystone_ver):
     """
     Check that the environment variables have been found.  Without connection
     variables to the openstack testbed it is impossible to build a landscape
@@ -120,14 +159,22 @@ def _check_conn_variables(user, password, auth_uri, tenant_name):
     :param user: Username.
     :param password: Password.
     :param auth_uri: URI to the Openstack testbed.
-    :param tenant_id: Tenant id.
-    :param tenant_name: Tenant Name.
+    :param project_name: Tenant Name.
+    :param project_id: Project ID.
+    :param user_domain_name: User domain name.
     """
 
-    if not user or not password or not auth_uri or not tenant_name:
-        envs = [OS_USERNAME, OS_PASSWORD, OS_TENANT_NAME, OS_TENANT_ID,
-                OS_AUTH_URL]
-        msg = "Environment variables {e[0]}, {e[1]}, {e[2]}, {e[3]} " \
-              "and {e[4]} are required".format(e=envs)
+    envs = [OS_USERNAME, OS_PASSWORD, OS_PROJECT_NAME, OS_PROJECT_ID, OS_AUTH_URL, OS_USER_DOMAIN_NAME]
+    msg = ""
+    if keystone_ver == '3':
+        #print [user, password, auth_uri, project_name, project_id, user_domain_name]
+        if not user or not password or not auth_uri or not project_name or not project_id or not user_domain_name:
+            msg = "Environment variables {e[0]}, {e[1]}, {e[2]}, {e[3]}, {e[4]} " \
+                  "and {e[5]} are required".format(e=envs)
+    else:
+        #print [user, password, auth_uri, project_name]
+        if not user or not password or not auth_uri or not project_name:
+            msg = "Environment variables {e[0]}, {e[1]}, {e[2]} and {e[3]} are required".format(e=envs)
+    if len(msg) > 0:
         LOG.error(msg)
         raise ValueError(msg)
