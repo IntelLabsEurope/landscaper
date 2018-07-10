@@ -16,7 +16,8 @@ Configuration class for the landscaper.
 """
 import ConfigParser
 from collections import namedtuple
-
+import re
+import os
 from landscaper import paths
 from landscaper.common import LOG
 
@@ -129,9 +130,13 @@ class ConfigurationManager(object):
 
     def get_machines(self):
         """
-        Returns a list of all of the machines in the config file.
+        Get the list of physical machines by scanning the folder with hwloc files.
         """
-        return self.get_variable('physical_layer', 'machines').split(",")
+        hwloc_folder = self.get_hwloc_folder()
+        hw_loc_ext = '_hwloc.xml'
+        pattern = re.compile(re.escape(hw_loc_ext), re.IGNORECASE)
+        machines = [pattern.sub('', f) for f in os.listdir(hwloc_folder) if os.path.isfile(os.path.join(hwloc_folder, f)) and f.lower().endswith(hw_loc_ext)]
+        return machines
 
     def get_swarm_info(self):
         """
@@ -177,6 +182,7 @@ class ConfigurationManager(object):
         exchanges = self.get_variable('rabbitmq', 'exchanges').split(",")
         return rabbitmq(username, password, host, port, topic, queue,
                         exchanges)
+
 
     def get_collectors(self):
         """
