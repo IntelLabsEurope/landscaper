@@ -15,12 +15,14 @@
 Tests for Configuration Manager
 """
 import unittest
+import mock
+import os
 from landscaper.utilities import configuration
 
 from tests.test_utils import utils
 
 CONFIGURATION_SECTION = 'general'
-
+PHYSICAL_CONFIG = 'physical_layer'
 # pylint: disable=W0212
 
 
@@ -78,3 +80,17 @@ class TestConfiguration(unittest.TestCase):
         actual_value = self.conf_manager.get_variable(section, variable)
         self.assertEqual(expected_value, actual_value,
                          "Returned value does not match set value")
+
+    def get_test_hwloc_folder():
+        tests_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        return tests_dir
+
+    @mock.patch('landscaper.utilities.configuration.ConfigurationManager.get_hwloc_folder', side_effect=get_test_hwloc_folder)
+
+    def test_get_machines(self, get_test_hwloc_folder_function):
+        """
+        Tests get_machines function
+        """
+        machines = self.conf_manager.get_machines()
+        self.assertIn('machine-A', machines)
+
