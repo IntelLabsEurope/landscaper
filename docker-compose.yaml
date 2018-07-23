@@ -21,6 +21,9 @@ services:
   build: ./
   image: landscaper:latest
   volumes:
+  #IMPORTANT: Ensure these paths does not conflict with
+  # 1. DATA_DIR value in paths.py,
+  # 2. hwloc_folder / cpuinfo_folder values in landscaper.cfg file
    - <local_landscape_path>/data:/landscaper/data
    - <local_landscape_path>/landscaper.cfg:/landscaper/landscaper.cfg
   depends_on:

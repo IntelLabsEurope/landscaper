@@ -17,6 +17,9 @@ Keeps track of all of the paths in the landscaper.
 import os
 PROJECT_ROOT = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
 CONF_FILE = os.path.join(PROJECT_ROOT, "landscaper.cfg")
+#IMPORTANT: Ensure DATA_DIR path does not conflict with :
+#   1. Paths in volumes section in docker-compose.yaml file
+#   2. hwloc_folder / cpuinfo_folder values in landscaper.cfg file
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 
 LANDSCAPER_MOD = os.path.join(PROJECT_ROOT, "landscaper")
