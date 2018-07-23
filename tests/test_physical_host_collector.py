@@ -48,7 +48,7 @@ class TestCoordinates(unittest.TestCase):
         self.graph.add_node("switch-V", {"type": "switch",
                                          "attributes": {"bandwidth": "40",
                                                         "ports": "48"}})
-        self.collector = phc.HWLocCollector(None, mock.Mock(), None)
+        self.collector = phc.HWLocCollector(None, mock.Mock(), mock.Mock())
         logging.disable(logging.CRITICAL)
 
     def tearDown(self):
@@ -102,8 +102,9 @@ class TestCoordinates(unittest.TestCase):
         # Add physical machine to the database
         graphdb_mock = mock.Mock()
         confmgr_mock = mock.Mock()
+        eventmgr_mock = mock.Mock()
         confmgr_mock.get_types_to_filter.return_value = []
-        collector = phc.HWLocCollector(graphdb_mock, confmgr_mock, None)
+        collector = phc.HWLocCollector(graphdb_mock, confmgr_mock, eventmgr_mock)
         collector._add_physical_machine("machine-A", 12)
 
         # Find the machine node call + check that coordinates have been added.
@@ -113,3 +114,29 @@ class TestCoordinates(unittest.TestCase):
                 attributes = call[0][2]
                 self.assertIn('coordinates', attributes)
                 break
+
+    def test__remove_physical_machine(self):
+        """
+        Ensures that the coordinates are removed from the database.
+        """
+        # Fake hwloc file used
+        machine = "machine-A"
+        tests_dir = os.path.dirname(os.path.abspath(__file__))
+        hwloc_file = "{}_hwloc.xml".format(machine)
+        hwloc_path = os.path.join(tests_dir, 'data', hwloc_file)
+        # Remove physical machine from the database
+        graphdb_mock = mock.Mock()
+        graphdb_mock.get_node_by_uuid.return_value = machine
+        confmgr_mock = mock.Mock()
+        eventmgr_mock = mock.Mock()
+        collector = phc.HWLocCollector(graphdb_mock, confmgr_mock, eventmgr_mock)
+        collector._remove_physical_machine("machine-A", 12)
+
+        # Find the machine node call + check that coordinates have been deleted.
+        exists = False
+        for call in graphdb_mock.delete_node.call_args_list:
+            node_name = call[0][0]
+            if node_name == machine:
+                exists = True
+                break
+        self.assertIs(exists, True)

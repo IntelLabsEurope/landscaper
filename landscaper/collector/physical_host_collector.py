@@ -37,7 +37,7 @@ OSDEVTYPE_CATEGORY_MAP = {
 CONFIGURATION_SECTION = 'physical_layer'
 
 # Events to listen for.
-EVENTS = [pyinotify.IN_CREATE]
+EVENTS = [pyinotify.IN_CREATE, pyinotify.IN_DELETE]
 
 
 
@@ -69,16 +69,15 @@ class HWLocCollector(base.Collector):
         Adds new hosts to the physical layer when new hwloc file added to /data directory
         """
         LOG.info("HWLocCollector - event received: %s %s", event, body)
-        if event == pyinotify.IN_CREATE:
-            folder, filename = os.path.split(body)
-            # only process hwloc files added
-            if filename[-10:] == "_hwloc.xml":
+        folder, filename = os.path.split(body)
+        # only process hwloc files added
+        if filename[-10:] == "_hwloc.xml":
+            device_id = filename[:-10]
+            if event == pyinotify.IN_CREATE:
                 LOG.info("HWLocCollector - processing: %s", filename[:-10])
-                device_id = filename[:-10]
                 self._add_physical_machine(device_id, time.time())
-
-        # elif event == pyinotify.IN_DELETE:
-            # TODO implement delete host functionality
+            elif event == pyinotify.IN_DELETE:
+                self._remove_physical_machine(device_id, time.time())
 
     def _add_physical_machine(self, machine, timestamp):
         """
@@ -87,6 +86,9 @@ class HWLocCollector(base.Collector):
         :param machine: Machine name.
         :param timestamp: Epoch timestamp
         """
+        identity = self.graph_db.get_node_by_uuid(machine)
+        if identity:
+            LOG.error("Machine : %s exists in an inactive state in the landscape.", machine)
         hwloc = self._get_hwloc(machine)
         if hwloc is not None:
             LOG.info("HWLocCollector - Adding machine: %s", machine)
@@ -103,6 +105,13 @@ class HWLocCollector(base.Collector):
         else:
             LOG.error("No hwloc details for machine: %s", machine)
 
+    def _remove_physical_machine(self, machine, timestamp):
+        identity = self.graph_db.get_node_by_uuid(machine)
+        if identity:
+            self.graph_db.delete_node(identity, timestamp)
+            LOG.info("Machine : %s deleted from landscape", machine)
+        else:
+            LOG.error("Machine : %s not in the landscape to delete!", machine)
     @staticmethod
     def _add_coordinates(graph, node):
         """
