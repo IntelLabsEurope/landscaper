@@ -80,10 +80,10 @@ class Neo4jGDB(base.GraphDB):
         identity = _format_node(identity)
         identity['name'] = node_id
         iden_node = Node(identity.get('category', 'UNDEFINED'), **identity)
-
-        if self.graph_db.exists(iden_node):
+        existing_node = self.get_node_by_uuid(node_id)
+        if existing_node:
             LOG.warn("Node with UUID: %s already stored in DB", node_id)
-            return iden_node
+            return existing_node
 
         # Store nodes to the database.
         transaction = self.graph_db.begin()
