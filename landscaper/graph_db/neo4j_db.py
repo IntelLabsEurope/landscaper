@@ -277,14 +277,16 @@ class Neo4jGDB(base.GraphDB):
                                                               property_value)
         conditional_query += condition
         query = 'match (n)-[r:STATE]->(s) where {0} ' \
-                'AND (r.from <= {1} AND r.to > {2}) return n, s'\
+                'AND (r.from <= {1} AND r.to > {2}) return n, r, s'\
             .format(conditional_query, start, end)
         graph = DiGraph()
-        for id_node, state_node in self.graph_db.run(query):
+        for id_node, rel, state_node in self.graph_db.run(query):
             node = dict(id_node)
             state_attributes = self._unique_attribute_names(IDEN_PROPS,
                                                             dict(state_node),
                                                             node["type"])
+            state_attributes['from'] = rel['from']
+            state_attributes['to'] = rel['to']
             node.update(state_attributes)
             graph.add_node(node["name"], node)
         graph_json = json.dumps(json_graph.node_link_data(graph))
@@ -310,20 +312,23 @@ class Neo4jGDB(base.GraphDB):
         """
         graph = DiGraph()
         node_query = "match (i)-[r:STATE]->(s) where i.name='{}' and r.to>{}" \
-                     " return i, s".format(uuid, str(time.time()))
+                     " return i, r, s".format(uuid, str(time.time()))
         query_result = self.graph_db.run(node_query)
 
         result = list(query_result)
         if result:
             records = result[0]
             node = dict(records[0])
-            state_attrs = dict(records[1])
+            rel = dict(records[1])
+            state_attrs = dict(records[2])
             if 'geo' in state_attrs:
                 state_attrs['geo'] = json.loads(state_attrs['geo'])
 
             state_attributes = self._unique_attribute_names(IDEN_PROPS,
                                                             state_attrs,
                                                             node["type"])
+            state_attributes["from"] = rel["from"]
+            state_attributes["to"] = rel["to"]
             node.update(state_attributes)
             graph.add_node(uuid, node)
 
@@ -524,6 +529,8 @@ class Neo4jGDB(base.GraphDB):
                         state_attrs = self._unique_attribute_names(IDEN_PROPS,
                                                                    state,
                                                                    prefix)
+                        state_attrs['from'] = relation['from']
+                        state_attrs['to'] = relation['to']
                         result.add_node(node_id, state_attrs)
                 else:
                     relations.append(relation)
@@ -553,9 +560,9 @@ class Neo4jGDB(base.GraphDB):
 
         tmp = 'MATCH (idnode)-[rs:STATE]->(statenode) WHERE (rs.from <= {0} ' \
               'AND rs.to > {1}) ' \
-              'RETURN idnode, statenode;'.format(str(timestamp), str(endtime))
+              'RETURN idnode, rs, statenode;'.format(str(timestamp), str(endtime))
 
-        for idnode, statenode in self.graph_db.run(tmp):
+        for idnode, rs, statenode in self.graph_db.run(tmp):
             uuid = dict(idnode).get('name', None)
             if uuid is not None:
                 attr = dict(idnode)
@@ -565,6 +572,8 @@ class Neo4jGDB(base.GraphDB):
                 state_attributes = self._unique_attribute_names(IDEN_PROPS,
                                                                 state_attrs,
                                                                 attr["type"])
+                state_attributes['to'] = rs['to']
+                state_attributes['from'] = rs['from']
                 attr.update(state_attributes)
                 result.add_node(uuid, attr)
 
