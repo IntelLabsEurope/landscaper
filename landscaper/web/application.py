@@ -212,6 +212,25 @@ def add_new_service():
 
     return Response(status=201, mimetype=MIME)
 
+
+@APP.route("/service_instances")
+def get_service_instances():
+    """
+    Returns the service instances that match the properties provided
+    """
+    LOG.info("Accessing URL %s", request.url)
+    properties_string = request.args.get("properties")
+    timestamp = request.args.get("timestamp") or 0
+    timeframe = request.args.get("timeframe") or int(time.time()) * -1
+    if not properties_string:
+        err_msg = "Properties must be specified."
+        LOG.warn(err_msg)
+        abort(400, err_msg)
+    properties = ast.literal_eval(properties_string)
+    graph = LANDSCAPE.graph_db.get_node_by_properties_web(properties, timestamp, timeframe)
+    return Response(graph, mimetype=MIME)
+
+
 def _bool(value):
     """
     Determine if the value supplied can be interpreted as bool.

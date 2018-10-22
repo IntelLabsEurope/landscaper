@@ -269,17 +269,26 @@ class Neo4jGDB(base.GraphDB):
         end = start + timeframe
         # Build conditional query
         conditional_query = ""
-        property_key = properties[0]
-        property_value = properties[1]
-        propery_operator = "="
-        condition = '(n.{0}{1}"{2}" OR s.{0}{1}"{2}")'.format(property_key,
-                                                              propery_operator,
-                                                              property_value)
-        conditional_query += condition
+        for prop in properties:
+            property_key = prop[0]
+            property_value = prop[1]
+            property_operator = "="
+            if isinstance(property_value, str):
+                condition = '(n.{0}{1}"{2}" or s.{0}{1}"{2}") AND '.format(
+                    property_key,
+                    property_operator,
+                    property_value)
+            else:
+                condition = '(n.{0}{1}{2} or s.{0}{1}{2}) AND '.format(
+                    property_key,
+                    property_operator,
+                    property_value)
+            conditional_query += condition
         query = 'match (n)-[r:STATE]->(s) where {0} ' \
-                'AND (r.from <= {1} AND r.to > {2}) return n, r, s'\
+                '(r.from <= {1} AND r.to > {2}) return n, r, s'\
             .format(conditional_query, start, end)
         graph = DiGraph()
+        LOG.info(query)
         for id_node, rel, state_node in self.graph_db.run(query):
             node = dict(id_node)
             state_attributes = self._unique_attribute_names(IDEN_PROPS,
