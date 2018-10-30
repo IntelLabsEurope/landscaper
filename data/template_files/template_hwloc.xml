@@ -24,7 +24,7 @@
     <info name="OSName" value="Linux"/>
     <info name="OSRelease" value="4.4.0-78-generic"/>
     <info name="OSVersion" value="#99-Ubuntu SMP Thu Apr 27 15:29:09 UTC 2017"/>
-    <info name="HostName" value="machine-A"/>
+    <info name="HostName" value="ENTER_HOSTNAME"/>
     <info name="Architecture" value="x86_64"/>
     <info name="hwlocVersion" value="1.11.2"/>
     <info name="ProcessName" value="hwloc-ls"/>
@@ -102,7 +102,7 @@
         <info name="PCIVendor" value="Intel Corporation"/>
         <info name="PCIDevice" value="Ethernet Connection I217-LM"/>
         <object type="OSDev" name="eth0" osdev_type="2">
-          <info name="Address" value="7B:A6:8C:E5:E8:85"/>
+          <info name="Address" value="ENTER_MAC"/>
         </object>
       </object>
       <object type="PCIDev" os_index="400" name="Intel Corporation Ethernet Connection I217-LM" pci_busid="0000:00:19.0" pci_type="0200 [8086:153a] [1458:e000] 04" pci_link_speed="0.000000">

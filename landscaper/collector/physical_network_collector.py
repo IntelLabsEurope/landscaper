@@ -23,7 +23,7 @@ from landscaper.common import LOG
 
 # Structure of the switch nodes.
 IDENTITY = {'type': 'switch', 'layer': 'physical', 'category': 'network'}
-STATE = {'switch_name': None, 'bandwidth': None, 'roles': None}
+STATE = {'switch_name': None, 'bandwidth': None, 'roles': None, 'address': None}
 
 
 class PhysicalNetworkCollector(base.Collector):
@@ -39,8 +39,11 @@ class PhysicalNetworkCollector(base.Collector):
     def init_graph_db(self):
         LOG.info("[PHYS NETWORK] Adding physical network.")
         net_description = self._network_description(paths.NETWORK_DESCRIPTION)
+        # Use two loops for inter switch connections.
         for switch, switch_info in net_description.iteritems():
             self._add_switch(switch, switch_info, time.time())
+        for switch, switch_info in net_description.iteritems():
+            self._connect_switches(switch, switch_info, time.time())
 
     def update_graph_db(self, event, body):
         pass
@@ -49,20 +52,22 @@ class PhysicalNetworkCollector(base.Collector):
         # Add the switch node.
         iden, state = self._create_switch_nodes(switch_info)
         switch = self.graph_db.add_node(switch_id, iden, state, timestamp)
+        self.graph_db.add_node(switch_id, iden, state, timestamp)
 
-        # Connect the switch node to the nics
-        for mac in switch_info.get('connected-devices', []):
-            nic = self._nic_node(mac)
-            if nic:
-                self.graph_db.add_edge(nic, switch, timestamp, "COMMUNICATES")
+    def _connect_switches(self, switch_id, switch_info, timestamp):
+        switch = self.graph_db.get_node_by_uuid(switch_id)
+        for dev_id in switch_info.get('connected-devices', []):
+            device = self._the_node(dev_id)
+            if device:
+                self.graph_db.add_edge(device, switch, timestamp, "COMMUNICATES")
             else:
-                LOG.warning("Couldn't connect device '%s' to switch '%s'", mac,
+                LOG.warning("Couldn't connect device '%s' to switch '%s'", dev_id,
                             switch_id)
 
-    def _nic_node(self, mac_address):
+    def _the_node(self, device_id):
         nic_node = None
-        mac_address = mac_address.lower()
-        nodes = self.graph_db.get_nodes_by_properties({"address": mac_address})
+        device_id = device_id.lower()
+        nodes = self.graph_db.get_nodes_by_properties({"address": device_id})
         if nodes:
             predecessors = self.graph_db.predecessors(nodes[0])
             if predecessors:
@@ -80,4 +85,5 @@ class PhysicalNetworkCollector(base.Collector):
         state_node['switch_name'] = switch_info.get('name')
         state_node['bandwidth'] = switch_info.get('bandwidth')
         state_node['roles'] = switch_info.get('roles', [])
+        state_node['address'] = switch_info.get('address')
         return identity_node, state_node

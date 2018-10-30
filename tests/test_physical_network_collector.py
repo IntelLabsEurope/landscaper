@@ -222,7 +222,7 @@ class TestNicNode(unittest.TestCase):
         param = {"address": mac}
         self.mck_graph_db.get_nodes_by_properties.return_value = [fake_node]
         self.mck_graph_db.predecessors.return_value = [(fake_nic, "edge")]
-        nic_node = self.collector._nic_node(mac)
+        nic_node = self.collector._the_node(mac)
 
         self.mck_graph_db.get_nodes_by_properties.assert_called_with(param)
         self.mck_graph_db.predecessors.assert_called_with(fake_node)
@@ -233,7 +233,7 @@ class TestNicNode(unittest.TestCase):
         Check that the mac address cannot be found in the database.
         """
         self.mck_graph_db.get_nodes_by_properties.return_value = None
-        nic_node = self.collector._nic_node("0F:61:BF:6F:63:0D")
+        nic_node = self.collector._the_node("0F:61:BF:6F:63:0D")
         self.assertIsNone(nic_node)
 
     def test_no_predecessors(self):
@@ -243,7 +243,7 @@ class TestNicNode(unittest.TestCase):
         fake_node = "cardboard_node"
         self.mck_graph_db.get_nodes_by_properties.return_value = [fake_node]
         self.mck_graph_db.predecessors.return_value = []
-        nic_node = self.collector._nic_node("BA:FA:6A:F0:79:66")
+        nic_node = self.collector._the_node("BA:FA:6A:F0:79:66")
 
         self.assertIsNone(nic_node)
 

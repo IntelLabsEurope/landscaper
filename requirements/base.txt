@@ -5,4 +5,5 @@ pycurl==7.43.0
 rfc3986==0.4.1
 flask==0.12.1
 flask_cors==3.0.3
+pyexcel==0.5.7
 docker-py==1.10.6
