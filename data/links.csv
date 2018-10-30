@@ -1,0 +1,7 @@
+Source,Target,COMMUNICATES
+site_0,site_a1
+site_0,site_b1
+site_a1,site_aa1
+site_a1,site_ab1
+site_b1,site_ba1
+site_b1,site_bb1

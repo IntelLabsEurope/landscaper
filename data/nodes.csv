@@ -1,0 +1,8 @@
+UniqueID,category,type,num_of_servers,Tier,Latitude,Longitude
+site_0,network,switch,4,Inner-Core,53.345678,6.263904
+site_a1,network,switch,3,Outer-Core,53.271562,9.053334
+site_b1,network,switch,3,Outer-Core,51.896158,8.473411
+site_aa1,network,switch,2,Tier1,53.300270,8.746769
+site_ab1,network,switch,2,Tier1,53.337618,9.179290
+site_ba1,network,switch,2,Tier1,51.829815,8.322456
+site_bb1,network,switch,2,Tier1,51.705602,8.52318
