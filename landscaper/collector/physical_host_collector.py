@@ -16,6 +16,7 @@ Physical layer collector.
 """
 import os
 import time
+import threading
 import xml.etree.ElementTree as Et
 from networkx import DiGraph
 import pyinotify
@@ -60,9 +61,25 @@ class HWLocCollector(base.Collector):
         """
         LOG.info("Adding physical machines to the landscape...")
         now_ts = time.time()
-        for machine in self.conf_mgr.get_machines():
-            self._add_physical_machine(machine, now_ts)
+        machines = self.conf_mgr.get_machines()
+        self._add_physical_machine_threads(machines, now_ts)
         LOG.info("Finished adding physical machines to the landscape.")
+
+    def _add_physical_machine_threads(self, machines, timestamp):
+        """
+        Add a machines to graph database using threading.
+        :param machines: Machine name.
+        :param timestamp: Epoch timestamp
+        """
+        threads = []
+        for machine in machines:
+            machine_thread = threading.Thread(target=self._add_physical_machine,
+                                           args=(machine, timestamp))
+            threads.append(machine_thread)
+            machine_thread.start()
+
+        for thr in threads:
+            thr.join()
 
     def update_graph_db(self, event, body):
         """
