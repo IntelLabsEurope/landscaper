@@ -65,7 +65,10 @@ class ContainerCollectorV1(base.Collector):
         for node in nodes:
             node_id = node.attrs["ID"]
             hostname = node.attrs['Description']['Hostname']
-            addr = node.attrs['ManagerStatus']['Addr']
+            if 'ManagerStatus' in node.attrs:
+                addr = node.attrs['ManagerStatus']['Addr']
+            else:
+                addr = node.attrs['Status']['Addr']
             state_attributes = self._get_instance_info(node)
             self._add_instance(node_id, addr, hostname, state_attributes, now_ts)
         LOG.info("ContainerCollector - Docker infrastructure components added.")
@@ -213,16 +216,16 @@ class ContainerCollectorV1(base.Collector):
         Retrieves Docker client object or error
         :return client object or error
         """
-        if docker_conf[2] and docker_conf[3]:
-            tls_config = docker.tls.TLSConfig(
-                client_cert=(docker_conf[2], docker_conf[3])
-            )
-        else:
-            tls_config = False
-
-        manager_address = ContainerCollectorV1.get_connection_string(docker_conf)
-        client = docker.DockerClient(base_url=manager_address, tls=tls_config)
-        #client = docker.from_env()
+        # if docker_conf[2] and docker_conf[3]:
+        #     tls_config = docker.tls.TLSConfig(
+        #         client_cert=(docker_conf[2], docker_conf[3])
+        #     )
+        # else:
+        #     tls_config = False
+        #
+        # manager_address = ContainerCollectorV1.get_connection_string(docker_conf)
+        # client = docker.DockerClient(base_url=manager_address, tls=tls_config)
+        client = docker.from_env()
         try:
             return client
         except KeyError as err:
