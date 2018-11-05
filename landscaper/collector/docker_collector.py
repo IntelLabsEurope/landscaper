@@ -55,16 +55,16 @@ class DockerCollectorV2(base.Collector):
         self.swarm_manager = self.get_swarm_manager(docker_conf)
 
     def get_swarm_manager(self, docker_conf):
-        if docker_conf[2] and docker_conf[3]:
-            tls_config = docker.tls.TLSConfig(
-                client_cert=(docker_conf[2], docker_conf[3])
-            )
-        else:
-            tls_config = False
-
-        manager_address = DockerCollectorV2._get_connection_string(docker_conf)
-        client = docker.DockerClient(base_url=manager_address, tls=tls_config)
-        #client = docker.from_env()
+        # if docker_conf[2] and docker_conf[3]:
+        #     tls_config = docker.tls.TLSConfig(
+        #         client_cert=(docker_conf[2], docker_conf[3])
+        #     )
+        # else:
+        #     tls_config = False
+        #
+        # manager_address = DockerCollectorV2._get_connection_string(docker_conf)
+        # client = docker.DockerClient(base_url=manager_address, tls=tls_config)
+        client = docker.from_env()
         try:
             return client
         except KeyError as err:

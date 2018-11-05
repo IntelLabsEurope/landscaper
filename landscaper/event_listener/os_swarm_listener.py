@@ -62,12 +62,13 @@ class OSSwarmListener(base.EventListener):
         """
         Consume notification from Swarm notification queue.
         """
-        LOG.info("Attempting to connect to address: %s",
-                 self.connection_string)
+        LOG.info("Subscribing to Docker events...")
         client = self._get_leader_client()
 
         for event in client.events():
+            LOG.info(event)
             self._cb_event(event)
+
         return
 
     def _get_leader_client(self):
@@ -91,19 +92,19 @@ class OSSwarmListener(base.EventListener):
         Returns a Docker client accordingly to the configuration file
         :return: Docker client
         """
-        if len(self.docker_conf) > 2 and \
-                self.docker_conf[2] and self.docker_conf[3]:
-            tls_config = docker.tls.TLSConfig(
-                client_cert=(self.docker_conf[2], self.docker_conf[3])
-            )
-        else:
-            tls_config = False
+        # if len(self.docker_conf) > 2 and \
+        #         self.docker_conf[2] and self.docker_conf[3]:
+        #     tls_config = docker.tls.TLSConfig(
+        #         client_cert=(self.docker_conf[2], self.docker_conf[3])
+        #     )
+        # else:
+        #     tls_config = False
         try:
-            client = docker.DockerClient(
-                base_url=OSSwarmListener._get_connection_string(self.docker_conf),
-                tls=tls_config
-            )
-            #client = docker.from_env()
+        #     client = docker.DockerClient(
+        #         base_url=OSSwarmListener._get_connection_string(self.docker_conf),
+        #         tls=tls_config
+        #     )
+            client = docker.from_env()
             return client
         except requests.ConnectionError as e:
             LOG.error('Please check Configuration file or Service availability')
