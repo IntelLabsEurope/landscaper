@@ -110,7 +110,7 @@ class TestGetNodeByProperties(unittest.TestCase):
         """
         Check that we get back the correct number of stacks that survived.
         """
-        prop = ("type", "stack")
+        prop = [("type", "stack")]
         graph = _deserialize(self.graph_db.get_node_by_properties_web(prop))
         self.assertEqual(len(graph.node), 2)
 
@@ -122,7 +122,7 @@ class TestGetNodeByProperties(unittest.TestCase):
                           "name": "stack-1", "stack_name": "yew",
                           "template": "<>", "type": "stack"}
         node = "stack-1"
-        prop = ("name", node)
+        prop = [("name", node)]
         graph = _deserialize(self.graph_db.get_node_by_properties_web(prop))
 
         self.assertEqual(len(graph), 1)
@@ -138,7 +138,7 @@ class TestGetNodeByProperties(unittest.TestCase):
                           "allocation": "machine-A", "type": "osdev_network",
                           "address": "54:6a:00:59:d6:33",
                           "osdev_network-name": "eth23"}
-        prop = ("name", node)
+        prop = [("name", node)]
         graph = _deserialize(self.graph_db.get_node_by_properties_web(prop))
         self.assertEqual(len(graph), 1)
         self.assertEqual(graph.node[node], node_structure)
