@@ -138,7 +138,7 @@ class ConfigurationManager(object):
         """
         Swarm configuration information.
         """
-        port = int(self.get_variable('docker', 'swarm_port'))
+        port = self.get_variable('docker', 'swarm_port')
         ip_address = self.get_variable('docker', 'swarm_ip')
         cert = self.get_variable('docker', 'client_cert')
         key = self.get_variable('docker', 'client_key')
