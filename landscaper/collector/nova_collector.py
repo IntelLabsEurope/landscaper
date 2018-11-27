@@ -56,8 +56,8 @@ class NovaCollectorV2(base.Collector):
         LOG.info("[NOVA] Adding Nova components to the landscape.")
         now_ts = time.time()
         for instance in self.nova.servers.list():
-            vcpus, mem, name, hostname = self._get_instance_info(instance)
-            self._add_instance(instance.id, vcpus, mem, name, hostname, now_ts)
+            vcpus, mem, name, hostname, libvirt_instance = self._get_instance_info(instance)
+            self._add_instance(instance.id, vcpus, mem, name, hostname, libvirt_instance, now_ts)
 
     def update_graph_db(self, event, body):
         """
@@ -68,6 +68,7 @@ class NovaCollectorV2(base.Collector):
         LOG.info("[NOVA] Processing event received: %s", event)
         now_ts = time.time()
         self._process_event(now_ts, event, body)
+        LOG.info("EVENT PROCESSED")
 
     def _process_event(self, timestamp, event, body):
         """
@@ -84,13 +85,19 @@ class NovaCollectorV2(base.Collector):
         name = body.get("payload", dict()).get("display_name", default)
         hostname = body.get("payload", dict()).get("host", default)
 
+        # Get Libvirt Instance
+        libvirt_instance = ""
+        for instance in self.nova.servers.list():
+            if instance.id == uuid:
+                a, b, c, d, libvirt_instance = self._get_instance_info(instance)
+
         instance_params = (uuid, vcpus, mem, name, hostname)
         if event in ADD_EVENTS and self._can_add(instance_params, default):
-            self._add_instance(uuid, vcpus, mem, name, hostname, timestamp)
+            self._add_instance(uuid, vcpus, mem, name, hostname, libvirt_instance, timestamp)
         elif event in DELETE_EVENTS:
             self._delete_instance(uuid, timestamp)
         elif event in UPDATE_EVENTS:
-            self._update_instance(uuid, vcpus, mem, name, timestamp)
+            self._update_instance(uuid, vcpus, mem, name, libvirt_instance, timestamp)
 
     def _can_add(self, parameters, default_value):
         # check that all parameters are filled, could be a partial update.
@@ -113,9 +120,13 @@ class NovaCollectorV2(base.Collector):
         mem = flavor.ram
         name = instance.name
         hostname = getattr(instance, 'OS-EXT-SRV-ATTR:hypervisor_hostname')
-        return vcpus, mem, name, hostname
 
-    def _add_instance(self, uuid, vcpus, mem, name, hostname, timestamp):
+        libvirt_instance = getattr(instance, "OS-EXT-SRV-ATTR:instance_name")
+
+        return vcpus, mem, name, hostname, libvirt_instance
+
+
+    def _add_instance(self, uuid, vcpus, mem, name, hostname, libvirt_instance, timestamp):
         """
         Adds a new instance to the graph database.
         :param uuid: Instance id.
@@ -125,7 +136,10 @@ class NovaCollectorV2(base.Collector):
         :param hostname: Parent host.
         :param timestamp: Epoch timestamp.
         """
-        identity, state = self._create_instance_nodes(vcpus, mem, name)
+
+        LOG.info("Adding INSTANCE - HOSTNAME: {}".format(hostname))
+
+        identity, state = self._create_instance_nodes(vcpus, mem, name, libvirt_instance)
         inst_node = self.graph_db.add_node(uuid, identity, state, timestamp)
         machine = self._get_machine_node(hostname)
 
@@ -134,7 +148,7 @@ class NovaCollectorV2(base.Collector):
             label = "DEPLOYED_ON"
             self.graph_db.add_edge(inst_node, machine, timestamp, label)
 
-    def _update_instance(self, uuid, vcpus, mem, name, timestamp):
+    def _update_instance(self, uuid, vcpus, mem, name, libvirt_instance, timestamp):
         """
         Updates an existing instance in the graph database.
         :param uuid: Instance id.
@@ -143,7 +157,7 @@ class NovaCollectorV2(base.Collector):
         :param name: Instance name.
         :param timestamp: Epoch timestamp.
         """
-        _, state = self._create_instance_nodes(vcpus, mem, name)
+        _, state = self._create_instance_nodes(vcpus, mem, name, libvirt_instance)
         self.graph_db.update_node(uuid, timestamp, state)
 
     def _delete_instance(self, uuid, timestamp):
@@ -166,7 +180,7 @@ class NovaCollectorV2(base.Collector):
         return machine
 
     @staticmethod
-    def _create_instance_nodes(vcpus, mem, name):
+    def _create_instance_nodes(vcpus, mem, name, libvirt_instance):
         """
         Creates the identity and state node for an instance.  They are created
         using the standard attributes for each instance, identity and state
@@ -181,4 +195,7 @@ class NovaCollectorV2(base.Collector):
         state_node["vcpu"] = vcpus
         state_node["mem"] = mem
         state_node["vm_name"] = name
+
+        state_node["libvirt_instance"] = libvirt_instance
+
         return identity_node, state_node
