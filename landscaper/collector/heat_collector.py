@@ -145,8 +145,19 @@ class HeatCollectorV1(base.Collector):
         nodes = list()
         resources = self.heat.resources.list(stack_id)
         for resource in resources:
-            res_uuid = resource.physical_resource_id
-            res_node = self.graph_db.get_node_by_uuid(res_uuid)
-            if res_node is not None:
-                nodes.append(res_node)
+            if resource.resource_type == 'OS::Heat::ResourceGroup':
+                params  = self._get_workload_output_params(stack_id)
+                counter = 1
+                for k, v in params.iteritems():
+                    #LOG.info('{}: k={}, v={}'.format(counter, k, v))
+                    counter += 1
+                    res_node = self.graph_db.get_node_by_uuid(v)
+                    if res_node is not None:
+                        nodes.append(res_node)
+            else:
+                res_uuid = resource.physical_resource_id
+                res_node = self.graph_db.get_node_by_uuid(res_uuid)
+                if res_node is not None:
+                    nodes.append(res_node)
         return nodes
+
