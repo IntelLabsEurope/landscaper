@@ -47,19 +47,15 @@ class ConfigurationManager(object):
             self.sections.append(section)
 
     @staticmethod
-    def _config_section_map(section, config_file):
+    def _config_section_map(section, config):
         """
         Returns a dictionary with the configuration values for the specific
         section
         :param section: section to be loaded (string)
-        :param config_file: name of the configuration file (string)
+        :param config: ConfigParser instance
         :return: dict
         """
-        section_dictionary = dict()
-        options = config_file.options(section)
-        for option in options:
-            section_dictionary[option] = config_file.get(section, option)
-        return section_dictionary
+        return dict(config.items(section))
 
     def get_variable(self, section, variable):
         """
@@ -142,7 +138,7 @@ class ConfigurationManager(object):
         """
         Swarm configuration information.
         """
-        port = int(self.get_variable('docker', 'swarm_port'))
+        port = self.get_variable('docker', 'swarm_port')
         ip_address = self.get_variable('docker', 'swarm_ip')
         cert = self.get_variable('docker', 'client_cert')
         key = self.get_variable('docker', 'client_key')

@@ -44,17 +44,8 @@ class CimiPhysicalCollector(base.Collector):
         files to the Data Directory.
         """
         LOG.info("Generating hwloc and cpu_info files")
-        devices_list = list()
-
         for device in self.get_devices():
-            filed_saved, hostname = self.generate_files(device)
-            if filed_saved:
-                devices_list.append(hostname)
-
-        # write the device list to the config file
-        device_csv = ','.join(str(x) for x in devices_list)
-        LOG.info("CIMI device list: " + device_csv)
-        self.conf_manager.set_variable(CONFIG_SECTION_PHYSICAL, CONFIG_VARIABLE_MACHINES, device_csv)
+            self.generate_files(device)
 
     def update_graph_db(self, event, body):
         """
@@ -129,24 +120,24 @@ class CimiPhysicalCollector(base.Collector):
 
     # returns all instances of devices
     def get_devices(self):
-        try:
-            cimi_url = self.cnf.get_variable(CONFIG_SECTION_GENERAL, CONFIG_CIMI_URL)
-            if cimi_url is None:
-                LOG.error("'CIMI_URL' has not been set in the 'general' section of the config file")
-                return
-            res = requests.get(cimi_url + '/device',
-                               headers={'slipstream-authn-info': 'super ADMIN'},
-                               verify=False)
+        #try:
+        cimi_url = self.cnf.get_variable(CONFIG_SECTION_GENERAL, CONFIG_CIMI_URL)
+        if cimi_url is None:
+            LOG.error("'CIMI_URL' has not been set in the 'general' section of the config file")
+            return
+        res = requests.get(cimi_url + '/device',
+                           headers={'slipstream-authn-info': 'internal ADMIN'},
+                           verify=False)
 
-            if res.status_code == 200:
-                return res.json()['devices']
+        if res.status_code == 200:
+            return res.json()['devices']
 
-            LOG.error("Request failed: " + res.status_code)
-            LOG.error("Response: " + str(res.json()))
-            return None
-        except:
-            LOG.error('Exception', sys.exc_info()[0])
-            return None
+        LOG.error("Request failed: " + res.status_code)
+        LOG.error("Response: " + str(res.json()))
+        return dict()
+        # except Exception as ex:
+        # LOG.error('Exception', ex.message)
+        # return dict()
 
     def _get_ipaddress(self, input_string):
         """
