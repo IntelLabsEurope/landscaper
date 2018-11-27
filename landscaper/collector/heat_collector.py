@@ -135,6 +135,25 @@ class HeatCollectorV1(base.Collector):
         state['template'] = template
         return identity, state
 
+
+    def _get_workload_output_params(self, workload_name):
+        res = dict()
+        params = dict()
+
+        outputs = self.heat.stacks.get(workload_name).outputs
+        for output in outputs:
+            output_key = str(output['output_key'])
+            if output_key.startswith('vm_'):
+                values = output['output_value']
+                if isinstance(values, (list,)): 
+                    params[output_key] = output['output_value'][0]
+                else:
+                    params[output_key] = output['output_value']
+        if len(params.keys()) > 0:
+            res = params
+        return res
+
+
     def _get_resources(self, stack_id):
         """
         Finds the resources created in the heat template which are in the
@@ -146,11 +165,16 @@ class HeatCollectorV1(base.Collector):
         resources = self.heat.resources.list(stack_id)
         for resource in resources:
             if resource.resource_type == 'OS::Heat::ResourceGroup':
+                LOG.info('group -----------------------')
                 params  = self._get_workload_output_params(stack_id)
                 counter = 1
+
+                LOG.info("PARAMS: {}".format(params))
+
                 for k, v in params.iteritems():
-                    #LOG.info('{}: k={}, v={}'.format(counter, k, v))
+                    LOG.info('{}: k={}, v={}'.format(counter, k, v))
                     counter += 1
+
                     res_node = self.graph_db.get_node_by_uuid(v)
                     if res_node is not None:
                         nodes.append(res_node)
