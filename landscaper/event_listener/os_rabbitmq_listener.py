@@ -99,6 +99,7 @@ class OSRabbitMQListener(base.EventListener):
         try:
             event = body['event_type']
             LOG.info("event: %s", event)
+            #LOG.info("Event Data: %s", body)
             if event in EVENTS:
                 self.events_manager.dispatch_event(event, body)
             message.ack()
