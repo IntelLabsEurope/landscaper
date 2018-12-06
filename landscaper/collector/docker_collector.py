@@ -101,6 +101,7 @@ class DockerCollectorV2(base.Collector):
         event_source = body.get("Type", None)
         LOG.info("[SWARM] Processing event received: %s", event)
         LOG.info("SWARM-----UUID----- %s", uuid)
+        # TODO: Needs modifications to support docker compose services
         try:
             if event in ADD_EVENTS:
                 time.sleep(2)
@@ -115,15 +116,16 @@ class DockerCollectorV2(base.Collector):
                              x.attrs['Id'] == uuid), None)
                         self._add_container(container, now_ts)
                     if body['Action'] == 'start':
-                        task_id = body['Actor']['Attributes'][
-                            'com.docker.swarm.task.id']
-                        service = self.swarm_manager.services.get(body['Actor']['Attributes'][
-                            'com.docker.swarm.service.id'])
-                        #service = next((x for x in self.swarm_manager.services.list() if
-                        #          x.attrs['ID'] == uuid), None)
-                        task = next((x for x in service.tasks() if
-                                     x['ID'] == task_id), None)
-                        self._add_task(task, now_ts)
+                        if 'com.docker.swarm.task.id' in body['Actor']['Attributes']:
+                            task_id = body['Actor']['Attributes'][
+                                'com.docker.swarm.task.id']
+                            service = self.swarm_manager.services.get(body['Actor']['Attributes'][
+                                'com.docker.swarm.service.id'])
+                            #service = next((x for x in self.swarm_manager.services.list() if
+                            #          x.attrs['ID'] == uuid), None)
+                            task = next((x for x in service.tasks() if
+                                         x['ID'] == task_id), None)
+                            self._add_task(task, now_ts)
             elif event in DELETE_EVENTS:
                 LOG.info("SWARM: deleting stack:\n")
                 if body['Type'] == 'container':
