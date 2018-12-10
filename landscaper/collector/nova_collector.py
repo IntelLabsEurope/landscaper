@@ -79,11 +79,12 @@ class NovaCollectorV2(base.Collector):
         :param body: THe Event data.
         """
         default = "UNDEFINED"
-        uuid = body.get("payload", dict()).get("instance_id", default)
-        vcpus = body.get("payload", dict()).get("vcpus", default)
-        mem = body.get("payload", dict()).get("memory_mb", default)
-        name = body.get("payload", dict()).get("display_name", default)
-        hostname = body.get("payload", dict()).get("host", default)
+        payload = body.get("payload", dict())
+        uuid = payload.get("instance_id", default)
+        vcpus = payload.get("vcpus", default)
+        mem = payload.get("memory_mb", default)
+        name = payload.get("display_name", default)
+        hostname = payload.get("host", default)
 
         # Get Libvirt Instance
         libvirt_instance = ""

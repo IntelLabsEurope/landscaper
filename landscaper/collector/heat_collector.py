@@ -140,7 +140,11 @@ class HeatCollectorV1(base.Collector):
         res = dict()
         params = dict()
 
-        outputs = self.heat.stacks.get(workload_name).outputs
+        workload = self.heat.stacks.get(workload_name)
+        if hasattr(workload, 'outputs'):
+            outputs = self.heat.stacks.get(workload_name).outputs
+        else:
+            outputs = list()
         for output in outputs:
             output_key = str(output['output_key'])
             if output_key.startswith('vm_'):
