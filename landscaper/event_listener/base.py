@@ -50,7 +50,7 @@ class EventListener(threading.Thread):
         :param event: Received event type.
         :param body: Event message.
         """
-        self.events_manager.dispatch(event, body)
+        self.events_manager.dispatch_event(event, body)
 
     def register_events(self, events):
         """
