@@ -15,6 +15,7 @@
 from os import path
 import sys
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import xml.etree.ElementTree as Et
 from landscaper.collector import base
 from landscaper.common import LOG
@@ -28,6 +29,7 @@ CONFIG_SECTION_PHYSICAL = 'physical_layer'
 CONFIG_VARIABLE_MACHINES = 'machines'
 
 MF2C_PATH_VALUE = "mf2c_device_id"
+SSL_VERIFY = False
 
 class CimiPhysicalCollector(base.Collector):
     """
@@ -124,16 +126,22 @@ class CimiPhysicalCollector(base.Collector):
         cimi_url = self.cnf.get_variable(CONFIG_SECTION_GENERAL, CONFIG_CIMI_URL)
         if cimi_url is None:
             LOG.error("'CIMI_URL' has not been set in the 'general' section of the config file")
-            return
+            return dict()
+
+        # TODO: certificate authentication issues
+        if cimi_url.lower().find('https') > 0:
+            requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
         res = requests.get(cimi_url + '/device',
                            headers={'slipstream-authn-info': 'internal ADMIN'},
-                           verify=False)
+                           verify=SSL_VERIFY)
 
         if res.status_code == 200:
+            LOG.info("CIMI Connection OK. Devices returned: " + str(len(res.json()['devices'])))
             return res.json()['devices']
 
-        LOG.error("Request failed: " + res.status_code)
-        LOG.error("Response: " + str(res.json()))
+        LOG.error("Request failed: " + str(res.status_code))
+        LOG.error("Response: " + str(res.text))
         return dict()
         # except Exception as ex:
         # LOG.error('Exception', ex.message)
