@@ -8,6 +8,6 @@ echo $neo_host
 sleep 4
 while ! curl -f $neo_host; do sleep 1; done
 echo "---found neo4j"
-sleep 8
+sleep 30
 echo "starting landscaper"
 python landscaper.py

@@ -86,6 +86,12 @@ class NovaCollectorV2(base.Collector):
         name = payload.get("display_name", default)
         hostname = payload.get("host", default)
 
+        # below lines added to handle VM delete events in liberty version of openstack
+        state_description = payload.get("state_description", default)
+        if state_description == "deleting" and event == 'compute.instance.update':
+            event = 'compute.instance.delete.end'
+        #########
+
         # Get Libvirt Instance
         libvirt_instance = ""
         for instance in self.nova.servers.list():
