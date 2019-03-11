@@ -32,7 +32,7 @@ CONFIG_VARIABLE_MACHINES = 'machines'
 MF2C_PATH_VALUE = "mf2c_device_id"
 SSL_VERIFY = False
 
-EVENTS = ['cimi.device.add', 'cimi.device.delete']
+EVENTS = ['cimi.device.create', 'cimi.device.delete']
 
 class CimiPhysicalCollector(base.Collector):
     """
@@ -46,6 +46,7 @@ class CimiPhysicalCollector(base.Collector):
             Events = EVENTS
         super(CimiPhysicalCollector, self).__init__(graph_db, conf_manager, events_manager, events=Events)
         self.cnf = conf_manager
+        self.device_dict = {}
 
     def init_graph_db(self):
         """
@@ -60,9 +61,9 @@ class CimiPhysicalCollector(base.Collector):
         """
         Save the hwloc and cpuinfo files to be picked up by the physical collector.
         """
-        if event=='cimi.device.add':
-            device = self.get_device(body)
-            self.generate_files(device)
+        if event=='cimi.device.create':
+            # device = self.get_device(body)
+            self.generate_files(body)
 
         elif event == 'cimi.device.delete':
             self.delete_files(body)
@@ -74,24 +75,26 @@ class CimiPhysicalCollector(base.Collector):
         :return: True if file successfully saved and hostname, False if errors encountered
         """
         hostname = ""
+        device_id = device['id']
         try:
-            hwloc = device["hwloc"]
+            hwloc = device.get("hwloc")
             if hwloc is None:
                 LOG.error(
-                    "hwLoc data has not been set for this device: " + device.id + ". No HwLoc file will be saved.")
+                    "hwLoc data has not been set for this device: " + device_id + ". No HwLoc file will be saved.")
                 return False
 
-            cpu_info = device["cpuinfo"]
+            cpu_info = device.get("cpuinfo")
             if cpu_info is None:
                 LOG.error(
-                    "CPU_info data has not been set for this device: " + device.id + ". No CPU_info file will be saved.")
-                return False
+                    "CPU_info data has not been set for this device: " + device_id + ". No CPU_info file will be saved.")
+                #return False
 
             hwloc, hostname = self._parse_hwloc(device, hwloc)
-
+            self.device_dict[device_id] = hostname
             # save the cpu info to file
-            cpu_path = os.path.join(paths.DATA_DIR, hostname + "_cpuinfo.txt")
-            self._write_to_file(cpu_path, cpu_info)
+            if cpu_info:
+                cpu_path = os.path.join(paths.DATA_DIR, hostname + "_cpuinfo.txt")
+                self._write_to_file(cpu_path, cpu_info)
 
             # save the hwloc to file
             hwloc_path = os.path.join(paths.DATA_DIR, hostname + "_hwloc.xml")
@@ -105,12 +108,12 @@ class CimiPhysicalCollector(base.Collector):
     # deletes hwloc & cpuinfo files for a device.
     def delete_files(self, device):
         try:
-            hwloc = device["hwloc"]
-            hwloc, hostname = self._parse_hwloc(device, hwloc)
-            hwloc_path = os.path.join(paths.DATA_DIR, hostname + "_hwloc.xml")
-            cpu_path = os.path.join(paths.DATA_DIR, hostname + "_cpuinfo.txt")
-            os.remove(hwloc_path)
-            os.remove(cpu_path)
+            hostname = self.device_dict.get(device)
+            if hostname:
+                hwloc_path = os.path.join(paths.DATA_DIR, hostname + "_hwloc.xml")
+                cpu_path = os.path.join(paths.DATA_DIR, hostname + "_cpuinfo.txt")
+                os.remove(hwloc_path)
+                os.remove(cpu_path)
         except Exception as ex:
             LOG.error("Error deleting hwloc/cpuinfo for device: {}, Error message:{}".format(device['id'], ex.message))
 
