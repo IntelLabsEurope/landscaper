@@ -115,7 +115,7 @@ class CimiPhysicalCollector(base.Collector):
                 os.remove(hwloc_path)
                 os.remove(cpu_path)
         except Exception as ex:
-            LOG.error("Error deleting hwloc/cpuinfo for device: {}, Error message:{}".format(device['id'], ex.message))
+            LOG.error("Error deleting hwloc/cpuinfo for device: {} ({}), Error message:{}".format(device, hostname, ex.message))
 
     # returns all instances of devices
     def get_devices(self):
