@@ -43,6 +43,7 @@ class CimiListener(base.EventListener):
         return self.cimiClient.get_collection(cimi_type, self.create_from_dates.get(cimi_type))
 
     def listen_for_events(self):
+        LOG.info("Subscribing to CIMI events")
         while True:
             if 'create' in CIMI_CRUD_EVENTS:
                 for cimi_type in CIMI_TYPES:
@@ -64,7 +65,7 @@ class CimiListener(base.EventListener):
             events.sort(key=cimi_sort, reverse=True)
             self.create_from_dates[collection] = events[0]["created"]
         else:
-            print "No events received for {}".format(event)
+            # print "No events received for {}".format(event)
             return
         if not prev_date:
             return

@@ -45,7 +45,7 @@ class CimiClient():
         if limit:
             limit_filter = "&$last={}".format(limit)
         url = self.cimi_url + '/event?$orderby=created:desc$filter=content/state="' + event_type + '"' + date_filter + limit_filter
-        print url
+        # print url
         res = requests.get(url,
                            headers={'slipstream-authn-info': 'internal ADMIN'},
                            verify=SSL_VERIFY)
@@ -67,7 +67,7 @@ class CimiClient():
         if limit:
             limit_filter = "&$last={}".format(limit)
         url = self.cimi_url + '/' + collection + '?$orderby=created:desc' + date_filter + limit_filter
-        print url
+        # print url
         res = requests.get(url,
                            headers={'slipstream-authn-info': 'internal ADMIN'},
                            verify=SSL_VERIFY)
