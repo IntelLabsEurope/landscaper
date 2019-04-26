@@ -16,6 +16,7 @@ Physical layer collector.
 """
 import os
 import time
+import json
 import xml.etree.ElementTree as Et
 from networkx import DiGraph
 import pyinotify
@@ -39,7 +40,7 @@ CONFIGURATION_SECTION = 'physical_layer'
 # Events to listen for.
 EVENTS = [pyinotify.IN_CREATE, pyinotify.IN_DELETE]
 
-
+DYNAMIC_PROPS = ['wifiThroughputInfo','ethernetThroughputInfo','ramFreePercent','storageFreePercent','powerRemainingStatus','powerPlugged','sensors','storageFree','cpuFreePercent']
 
 class HWLocCollector(base.Collector):
     """
@@ -79,6 +80,13 @@ class HWLocCollector(base.Collector):
             elif event == pyinotify.IN_DELETE:
                 self._remove_physical_machine(device_id, time.time())
 
+        if filename[-12:] == "_dynamic.upd":
+            device_id = filename[:-12]
+            if event == pyinotify.IN_CREATE:
+                LOG.info("Device Dynamic - processing: %s", filename[:-10])
+                self._update_dynamics(device_id, body, time.time())
+
+
     def _add_physical_machine(self, machine, timestamp):
         """
         Add a machine to graph database using the hwloc and cpuinfo files for a
@@ -99,6 +107,7 @@ class HWLocCollector(base.Collector):
             else:
                 LOG.error("No cpu info for machine: %s", machine)
             # Store the physical host in the graph database.
+            self._add_dynamics(graph, machine)
             self._add_coordinates(graph, machine)
             self._filter_nodes(graph)
             self.store_nxgraph_to_graph_db(graph, self.graph_db, timestamp)
@@ -264,6 +273,34 @@ class HWLocCollector(base.Collector):
         for obj_child in object_children:
             self._parse_object_hwloc(types_count, graph, obj_child, host_name,
                                      deleted_edges, parent=node_name)
+
+    def _add_dynamics(self, graph, machine):
+        """
+        Adds dynamic state data to the node within the graph. As the graph is passed
+        :param graph: The graph containing the node.
+        :param node: THe id of the node.
+        """
+        directory = self.conf_mgr.get_cpuinfo_folder()
+        file_name = "{}_dynamic.add".format(machine)
+        dynamic_info_path = os.path.abspath(os.path.join(directory, file_name))
+        if self._file_exist(dynamic_info_path, throw_error=False):
+            f = open(dynamic_info_path, "r")
+            dynamics = json.loads(f.read())
+            dynamics_filtered = filter_dynamics(dynamics)
+            graph.node[machine]["attributes"].update(dynamics_filtered)
+
+    def _update_dynamics(self, machine, dd_path, ts):
+        if self._file_exist(dd_path, throw_error=False):
+            f = open(dd_path, "r")
+            dynamics = json.loads(f.read())
+            dynamics_filtered = filter_dynamics(dynamics)
+            if dynamics_filtered.get('sensors'):
+                sens = dynamics_filtered['sensors']
+                if isinstance(sens, list):
+                    dynamics_filtered['sensors'] = json.dumps(sens)
+            f.close()
+            os.remove(dd_path)
+            self.graph_db.update_node(machine, ts, state=None, extra_attrs=dynamics_filtered)
 
     def _filter_nodes(self, graph):
         """
@@ -493,3 +530,13 @@ class HWLocCollector(base.Collector):
         if not space:
             output_string = output_string.replace(' ', '_')
         return output_string
+
+
+def filter_dynamics(dynamics):
+    dynamics_filtered = {}
+    for k, v in dynamics.iteritems():
+        if k in DYNAMIC_PROPS:
+            if isinstance(v, list):
+                v = json.dumps(v)
+            dynamics_filtered[k] = v
+    return dynamics_filtered

@@ -21,8 +21,8 @@ import time
 
 CIMI_LISTENER_INTERVAL_SECS = 5
 CIMI_SEC_HEADERS = "slipstream-authn-info:internal ADMIN"
-CIMI_TYPES = ['device']
-CIMI_CRUD_EVENTS = ['create', 'delete']
+CIMI_TYPES = [('device', ['create', 'delete']), ('device-dynamic', ['update'])]
+CIMI_CRUD_EVENTS = ['create', 'delete', 'update']
 
 # INIT - create events and subscribe, initialize a dictionary for each device to store last run dates,
 #        urls for additions. For deletions, just one url
@@ -46,24 +46,37 @@ class CimiListener(base.EventListener):
         LOG.info("Subscribing to CIMI events")
         while True:
             if 'create' in CIMI_CRUD_EVENTS:
-                for cimi_type in CIMI_TYPES:
-                    data = self.cimiClient.get_collection(cimi_type, from_date=self.create_from_dates.get(cimi_type))
-                    event = 'cimi.'+cimi_type+'.'+'create'
-                    self.raise_events(event, data)
+                for cimi_type, events in CIMI_TYPES:
+                    if 'create' in events:
+                        data = self.cimiClient.get_collection(cimi_type, from_date=self.create_from_dates.get(cimi_type))
+                        event = 'cimi.'+cimi_type+'.'+'create'
+                        self.raise_events(event, data)
             if 'delete' in CIMI_CRUD_EVENTS:
                 cimi_type = 'event'
                 data = self.cimiClient.get_events(from_date=self.create_from_dates.get(cimi_type), event_type="DELETED")
                 event = 'cimi.' + cimi_type + '.' + 'delete'
                 self.raise_events(event, data)
+            if 'update' in CIMI_CRUD_EVENTS:
+                for cimi_type, events in CIMI_TYPES:
+                    if 'update' in events:
+                        updtData = self.cimiClient.get_collection(cimi_type,
+                                                          from_date=self.create_from_dates.get(cimi_type), updates=True)
+                        event = 'cimi.' + cimi_type + '.' + 'update'
+                        self.raise_events(event, updtData)
             time.sleep(CIMI_LISTENER_INTERVAL_SECS)
 
     def raise_events(self, event, data):
         collection = event.split('.')[1]
         prev_date = self.create_from_dates.get(collection)
-        events = data.get(collection + 's')
+        array_label = collection + 's'
+        if array_label == 'device-dynamics':
+            array_label = 'deviceDynamics'
+        events = data.get(array_label)
+        if 'update' in event:
+            events = filterCreated(events)
         if events and len(events) > 0:
             events.sort(key=cimi_sort, reverse=True)
-            self.create_from_dates[collection] = events[0]["created"]
+            self.create_from_dates[collection] = events[0]["updated"]
         else:
             # print "No events received for {}".format(event)
             return
@@ -73,6 +86,10 @@ class CimiListener(base.EventListener):
             for new_item in events:
                 LOG.info("CIMI Create Event : {}".format(new_item))
                 self.dispatch(event, new_item)
+        if 'update' in event:
+            for updated_item in events:
+                LOG.info("CIMI Update Event : {}".format(updated_item))
+                self.dispatch(event, updated_item)
         if 'delete' in event:
             for deleted_item in events:
                 LOG.info("CIMI Delete Event : {}".format(deleted_item))
@@ -84,11 +101,18 @@ class CimiListener(base.EventListener):
 
 def events():
     evts = []
-    for cimi_type in CIMI_TYPES:
-        for crud_event in CIMI_CRUD_EVENTS:
+    for cimi_type, events in CIMI_TYPES:
+        for crud_event in events:
             evt = 'cimi.'+cimi_type+'.'+crud_event
             evts.append(evt)
     return evts
 
+def filterCreated(updtData):
+    validUpdt = []
+    for item in updtData:
+        if item['created'] != item['updated']:
+            validUpdt.append(item)
+    return validUpdt
+
 def cimi_sort(obj):
-    return obj['created']
+    return obj['updated']

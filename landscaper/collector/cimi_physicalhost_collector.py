@@ -13,13 +13,16 @@
 # limitations under the License.
 
 import os
+import json
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import xml.etree.ElementTree as Et
 from landscaper.collector import base
 from landscaper.common import LOG
+from landscaper.utilities.cimi import CimiClient
 from landscaper import paths
 from landscaper.utilities import configuration
+import time
 import urllib3
 requests.packages.urllib3.disable_warnings()
 
@@ -32,7 +35,7 @@ CONFIG_VARIABLE_MACHINES = 'machines'
 MF2C_PATH_VALUE = "mf2c_device_id"
 SSL_VERIFY = False
 
-EVENTS = ['cimi.device.create', 'cimi.device.delete']
+EVENTS = ['cimi.device.create', 'cimi.device.delete', 'cimi.device-dynamic.update']
 
 class CimiPhysicalCollector(base.Collector):
     """
@@ -47,6 +50,7 @@ class CimiPhysicalCollector(base.Collector):
         super(CimiPhysicalCollector, self).__init__(graph_db, conf_manager, events_manager, events=Events)
         self.cnf = conf_manager
         self.device_dict = {}
+        self.cimiClient = CimiClient(conf_manager)
 
     def init_graph_db(self):
         """
@@ -54,8 +58,14 @@ class CimiPhysicalCollector(base.Collector):
         files to the Data Directory.
         """
         LOG.info("Generating hwloc and cpu_info files")
-        for device in self.get_devices():
-            self.generate_files(device)
+        devices = self.get_devices()
+        deviceDynamics = self.device_dynamic_dict()
+        for device in devices:
+            # also get device dynamic
+            device_id = device['id']
+            dd = deviceDynamics.get(device_id)
+            # device_full = {key: value for (key, value) in (device.items() + dd.items())}
+            self.generate_files(device, dd)
 
     def update_graph_db(self, event, body):
         """
@@ -68,10 +78,14 @@ class CimiPhysicalCollector(base.Collector):
         elif event == 'cimi.device.delete':
             self.delete_files(body)
 
-    def generate_files(self, device):
+        elif event == 'cimi.device-dynamic.update':
+            self.generate_device_dynamic_file(body)
+
+    def generate_files(self, device, dynamic):
         """
         Queries the hwloc and cpuinfo methods and writes them to a file
         :param device: CIMI Device object containing hwloc and cpu_info methods
+        :param dynamic: CIMI device-dynamic object pertaining to the device object
         :return: True if file successfully saved and hostname, False if errors encountered
         """
         hostname = ""
@@ -89,8 +103,18 @@ class CimiPhysicalCollector(base.Collector):
                     "CPU_info data has not been set for this device: " + device_id + ". No CPU_info file will be saved.")
                 #return False
 
-            hwloc, hostname = self._parse_hwloc(device, hwloc)
+            if dynamic is None:
+                LOG.error(
+                    "Dynamic data has not been set for this device: " + device_id + ". No dynamic file will be saved.")
+                #return False
+
+            hwloc, hostname = self._parse_hwloc(device, dynamic, hwloc)
             self.device_dict[device_id] = hostname
+            # save the dynamic info to file
+            if dynamic:
+                dynamic_path = os.path.join(paths.DATA_DIR, hostname + "_dynamic.add")
+                self._write_to_file(dynamic_path, json.dumps(dynamic))
+
             # save the cpu info to file
             if cpu_info:
                 cpu_path = os.path.join(paths.DATA_DIR, hostname + "_cpuinfo.txt")
@@ -117,7 +141,14 @@ class CimiPhysicalCollector(base.Collector):
         except Exception as ex:
             LOG.error("Error deleting hwloc/cpuinfo for device: {} ({}), Error message:{}".format(device, hostname, ex.message))
 
-    # returns all instances of devices
+    def generate_device_dynamic_file(self, body):
+        device_id = body["device"]["href"]
+        hostname = self.device_dict.get(device_id)
+        if hostname:
+            dynamic_path = os.path.join(paths.DATA_DIR, hostname + "_dynamic.upd")
+            self._write_to_file(dynamic_path, json.dumps(body))
+
+    # returns all instances of device-dynamics
     def get_devices(self):
         #try:
         cimi_url = self.cnf.get_variable(CONFIG_SECTION_GENERAL, CONFIG_CIMI_URL)
@@ -144,6 +175,20 @@ class CimiPhysicalCollector(base.Collector):
         # LOG.error('Exception', ex.message)
         # return dict()
 
+    # returns all instances of devices
+    def get_device_dynamics(self):
+        #try:
+        res = self.cimiClient.get_collection('device-dynamic')
+        return res['deviceDynamics']
+
+    def device_dynamic_dict(self):
+        deviceDynamics = self.get_device_dynamics()
+        dddict = dict()
+        for item in deviceDynamics:
+            device_id = item["device"]["href"]
+            dddict[device_id] = item
+        return dddict
+
     # returns a specific device
     def get_device(self, device_id):
         #try:
@@ -165,7 +210,7 @@ class CimiPhysicalCollector(base.Collector):
         # LOG.error('Exception', ex.message)
         # return dict()
 
-    def _parse_hwloc(self, device, hwloc_str):
+    def _parse_hwloc(self, device, dynamic, hwloc_str):
         doc_root = Et.fromstring(hwloc_str)
         device_id = device["id"][7:]  # eg, device/737fe63b-2a34-44fe-9177-3aa6284ba2f5#
         for child in doc_root:
@@ -183,8 +228,8 @@ class CimiPhysicalCollector(base.Collector):
                 Et.SubElement(child, "info", device_id_att)
 
                 # add device's ip address to the hwloc file
-                if device["ethernetAddress"]:
-                    ipaddress = self._get_ipaddress(device["ethernetAddress"])
+                if dynamic.get("ethernetAddress"):
+                    ipaddress = self._get_ipaddress(dynamic["ethernetAddress"])
                     ipaddress_att = dict()
                     ipaddress_att["name"] = "ipaddress"
                     ipaddress_att["value"] = ipaddress
@@ -192,7 +237,7 @@ class CimiPhysicalCollector(base.Collector):
 
                 hwloc = Et.tostring(doc_root)
                 break
-        return hwloc, hostname,
+        return hwloc, hostname
 
     def _get_ipaddress(self, input_string):
         """
@@ -213,7 +258,7 @@ class CimiPhysicalCollector(base.Collector):
                     break
         # strip leading/ending quotes
         return ip_address[1:-1]
- 
+
     @staticmethod
     def _write_to_file(filename, file_content):
         """
