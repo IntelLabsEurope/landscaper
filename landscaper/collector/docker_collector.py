@@ -114,7 +114,8 @@ class DockerCollectorV2(base.Collector):
                         container = next(
                             (x for x in self.swarm_manager.containers.list() if
                              x.attrs['Id'] == uuid), None)
-                        self._add_container(container, now_ts)
+                        if container:
+                            self._add_container(container, now_ts)
                     if body['Action'] == 'start':
                         if 'com.docker.swarm.task.id' in body['Actor']['Attributes']:
                             task_id = body['Actor']['Attributes'][

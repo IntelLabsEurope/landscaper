@@ -273,7 +273,7 @@ class Neo4jGDB(base.GraphDB):
             property_key = prop[0]
             property_value = prop[1]
             property_operator = "="
-            if isinstance(property_value, str):
+            if isinstance(property_value, str) or isinstance(property_value, unicode):
                 condition = '(n.{0}{1}"{2}" or s.{0}{1}"{2}") AND '.format(
                     property_key,
                     property_operator,

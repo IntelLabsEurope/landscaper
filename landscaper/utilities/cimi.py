@@ -58,15 +58,18 @@ class CimiClient():
         return dict()
 
     # returns a specific device
-    def get_collection(self, collection, from_date=None, limit=None):
+    def get_collection(self, collection, from_date=None, limit=None, updates=False):
         # try:
+        fieldName = "created"
+        if updates is True:
+            fieldName = "updated"
         date_filter = ""
         if from_date:
-            date_filter = '&$filter=created>"%s"' % from_date
+            date_filter = '&$filter=' + fieldName + '>"%s"' % from_date
         limit_filter = ""
         if limit:
             limit_filter = "&$last={}".format(limit)
-        url = self.cimi_url + '/' + collection + '?$orderby=created:desc' + date_filter + limit_filter
+        url = self.cimi_url + '/' + collection + '?$orderby=' + fieldName + ':desc' + date_filter + limit_filter
         # print url
         res = requests.get(url,
                            headers={'slipstream-authn-info': 'internal ADMIN'},
