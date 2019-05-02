@@ -28,6 +28,7 @@ from landscaper.common import LOG
 from landscaper import landscape_manager as lm
 from landscaper.utilities.coordinates import Geo
 from landscaper.utilities import graph as util_graph
+from landscaper.utilities.log_api import LogApi
 
 
 APP = flask.Flask(__name__)
@@ -229,6 +230,14 @@ def get_service_instances():
     properties = ast.literal_eval(properties_string)
     graph = LANDSCAPE.graph_db.get_node_by_properties_web(properties, timestamp, timeframe)
     return Response(graph, mimetype=MIME)
+
+
+@APP.route("/landscaper_log")
+def get_landscaper_log():
+    ts = request.args.get("after_timestamp") or None
+    logapi = LogApi()
+    log = json.dumps(logapi.get_log(ts))
+    return Response(log, mimetype=MIME)
 
 
 def _bool(value):
