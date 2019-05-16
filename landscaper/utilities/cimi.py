@@ -82,4 +82,24 @@ class CimiClient():
         LOG.error("Response: " + str(res.json()))
         return dict()
 
+    def add_service_container_metrics(self, id, device_id, start_time):
+        url = self.cimi_url + '/service-container-metric'
+        data = {'container_id': id, 'device_id': device_id, 'start_time': start_time}
+        resp = requests.post(url, data, json=True)
+        print resp.text
 
+    def update_service_container_metrics(self, id, device_id, end_time):
+        coll = self.get_collection('service-container-metrics')
+        coll = coll['ServiceContainerMetrics']
+        scm_id = None
+        for item in coll:
+            dev_id = item['device_id'].replace('device/')
+            cont_id = item['container_id']
+            if dev_id == device_id and cont_id == id:
+                scm_id = item['id']
+                break
+        if scm_id:
+            url = self.cimi_url + '/service-container-metric' + scm_id
+            data = {'end_time': end_time}
+        resp = requests.put(url, data, json=True)
+        print resp.text
