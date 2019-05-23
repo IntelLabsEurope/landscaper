@@ -83,12 +83,14 @@ class CimiClient():
         return dict()
 
     def add_service_container_metrics(self, id, device_id, start_time):
+        return
         url = self.cimi_url + '/service-container-metric'
         data = {'container_id': id, 'device_id': device_id, 'start_time': start_time}
         resp = requests.post(url, data, json=True)
         print resp.text
 
     def update_service_container_metrics(self, id, device_id, end_time):
+        return
         coll = self.get_collection('service-container-metrics')
         coll = coll['ServiceContainerMetrics']
         scm_id = None

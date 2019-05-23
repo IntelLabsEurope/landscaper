@@ -15,6 +15,7 @@
 import os
 import json
 import requests
+import re
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import xml.etree.ElementTree as Et
 from landscaper.collector import base
@@ -229,7 +230,12 @@ class CimiPhysicalCollector(base.Collector):
 
                 # add device's ip address to the hwloc file
                 if dynamic.get("ethernetAddress"):
-                    ipaddress = self._get_ipaddress(dynamic["ethernetAddress"])
+                    patt = "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+                    result = re.search(patt, dynamic["ethernetAddress"])
+                    if result.string:
+                        ipaddress = result.string
+                    else:
+                        ipaddress = self._get_ipaddress(dynamic["ethernetAddress"])
                     ipaddress_att = dict()
                     ipaddress_att["name"] = "ipaddress"
                     ipaddress_att["value"] = ipaddress
