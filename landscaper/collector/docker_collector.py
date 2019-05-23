@@ -20,6 +20,7 @@ import time
 import json
 from landscaper.collector import base
 from landscaper.common import LOG
+from landscaper.utilities.cimi import CimiClient
 import docker
 import time
 
@@ -53,6 +54,7 @@ class DockerCollectorV2(base.Collector):
         conf_manager.add_section(CONFIG_SECTION)
         docker_conf = conf_manager.get_swarm_info()
         self.swarm_manager = self.get_swarm_manager(docker_conf)
+        self.cimi_client = CimiClient(self.conf_manager)
 
     def get_swarm_manager(self, docker_conf):
         # if docker_conf[2] and docker_conf[3]:
@@ -131,9 +133,15 @@ class DockerCollectorV2(base.Collector):
                 LOG.info("SWARM: deleting stack:\n")
                 if body['Type'] == 'container':
                     # delete the adjoining task
+                    uuid = body['id']
+                    end_time = body['time']
+                    cimi_device_id = self._get_cimi_device_id()
                     if 'com.docker.swarm.task.id' in body['Actor']['Attributes']:
                         task_id = body['Actor']['Attributes']['com.docker.swarm.task.id']
                         self._delete_node(task_id, now_ts)
+                    # Update cimi service-container-metrics resource
+                    if cimi_device_id:
+                        self.cimi_client.update_service_container_metrics(uuid, cimi_device_id, end_time)
                 self._delete_node(uuid, now_ts)
             elif event in UPDATE_EVENTS:
                 if event_source == 'service':
@@ -200,6 +208,11 @@ class DockerCollectorV2(base.Collector):
             uuid = container.attrs["Id"]
             service_node = self.graph_db.add_node(uuid, identity, state,
                                                   timestamp)
+            # CIMI service-container-metrics update
+            cimi_device_id = self._get_cimi_device_id()
+            start_dt = container.attrs['State']['StartedAt']
+            if cimi_device_id:
+                self.cimi_client.add_service_container_metrics(uuid, cimi_device_id, start_dt)
             #LOG.warn(service_node)
         #LOG.warn('Skipping: Container not running {}'.format(container.attrs['Id']))
 
@@ -397,3 +410,15 @@ class DockerCollectorV2(base.Collector):
         )
 
         return connection_string
+
+    def _get_cimi_device_id(self):
+        # Big assumption - docker swarm manager has only one node
+        nodes = self.swarm_manager.nodes.list()
+        if len(nodes) == 1:
+            host_node = nodes[0]
+            hostname = host_node.attrs['Description']['Hostname']
+            host = self.graph_db.get_node_by_uuid_web(hostname, False)
+            if host:
+                cimi_device_id = host.node[hostname].get('mf2c_device_id')
+                return cimi_device_id
+        return None
