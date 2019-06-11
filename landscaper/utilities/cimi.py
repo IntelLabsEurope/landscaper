@@ -21,13 +21,16 @@ CONFIG_CIMI_URL = "cimi_url"
 CIMI_SEC_HEADERS = {"slipstream-authn-info:internal ADMIN"}
 SSL_VERIFY = False
 
+
 class CimiClient():
 
     def __init__(self, conf_manager):
         self.cnf = conf_manager
-        cimi_url = self.cnf.get_variable(CONFIG_SECTION_GENERAL, CONFIG_CIMI_URL)
+        cimi_url = self.cnf.get_variable(
+            CONFIG_SECTION_GENERAL, CONFIG_CIMI_URL)
         if cimi_url is None:
-            LOG.error("'CIMI_URL' has not been set in the 'general' section of the config file")
+            LOG.error(
+                "'CIMI_URL' has not been set in the 'general' section of the config file")
             return
         # TODO: certificate authentication issues
         if cimi_url.lower().find('https') > 0:
@@ -44,8 +47,8 @@ class CimiClient():
         limit_filter = ""
         if limit:
             limit_filter = "&$last={}".format(limit)
-        url = self.cimi_url + '/event?$orderby=created:desc$filter=content/state="' + event_type + '"' + date_filter + limit_filter
-        # print url
+        url = self.cimi_url + '/event?$orderby=created:desc$filter=content/state="' + \
+            event_type + '"' + date_filter + limit_filter
         res = requests.get(url,
                            headers={'slipstream-authn-info': 'internal ADMIN'},
                            verify=SSL_VERIFY)
@@ -69,7 +72,8 @@ class CimiClient():
         limit_filter = ""
         if limit:
             limit_filter = "&$last={}".format(limit)
-        url = self.cimi_url + '/' + collection + '?$orderby=' + fieldName + ':desc' + date_filter + limit_filter
+        url = self.cimi_url + '/' + collection + '?$orderby=' + \
+            fieldName + ':desc' + date_filter + limit_filter
         # print url
         res = requests.get(url,
                            headers={'slipstream-authn-info': 'internal ADMIN'},
@@ -83,25 +87,26 @@ class CimiClient():
         return dict()
 
     def add_service_container_metrics(self, id, device_id, start_time):
-        return
         url = self.cimi_url + '/service-container-metric'
-        data = {'container_id': id, 'device_id': device_id, 'start_time': start_time}
+        data = {'container_id': id, 'device_id': device_id,
+                'start_time': start_time}
         resp = requests.post(url, data, json=True)
-        print resp.text
+        return resp
 
     def update_service_container_metrics(self, id, device_id, end_time):
-        return
         coll = self.get_collection('service-container-metrics')
         coll = coll['ServiceContainerMetrics']
         scm_id = None
         for item in coll:
-            dev_id = item['device_id'].replace('device/')
+            dev_id = item['device_id']
             cont_id = item['container_id']
             if dev_id == device_id and cont_id == id:
                 scm_id = item['id']
                 break
         if scm_id:
-            url = self.cimi_url + '/service-container-metric' + scm_id
+            url = self.cimi_url + '/service-container-metric/' + scm_id
             data = {'end_time': end_time}
-        resp = requests.put(url, data, json=True)
-        print resp.text
+            resp = requests.put(url, data, json=True)
+            return resp
+        else:
+            return ""
