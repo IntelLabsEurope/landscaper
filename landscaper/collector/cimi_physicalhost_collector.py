@@ -66,16 +66,17 @@ class CimiPhysicalCollector(base.Collector):
         files to the Data Directory.
         """
         LOG.info("Generating hwloc and cpu_info files")
-        max_retry = self.cnf.get_variable(
-            CONFIG_SECTION_GENERAL, CONFIG_CIMI_MAX_RETRY)
-        wait_time = self.cnf.get_variable(
-            CONFIG_SECTION_GENERAL, CONFIG_CIMI_WAIT_TIME)
+        max_retry = int(self.cnf.get_variable(
+            CONFIG_SECTION_GENERAL, CONFIG_CIMI_MAX_RETRY))
+        wait_time = int(self.cnf.get_variable(
+            CONFIG_SECTION_GENERAL, CONFIG_CIMI_WAIT_TIME))
 
         devices = dict()
 
         for i in range(max_retry):
             devices = self.get_devices()
             if bool(devices):
+                LOG.info("Received non empty devices list from CIMI")
                 break
             elif max_retry == i+1:
                 LOG.error(
@@ -84,8 +85,8 @@ class CimiPhysicalCollector(base.Collector):
             else:
                 time_to_sleep = wait_time * (i+1)
                 time.sleep(time_to_sleep)
-                LOG.info("Can't reach CIMI. Sleeping for " +
-                         time_to_sleep + "s")
+                LOG.info(
+                    "Received empty devices list from CIMI. Sleeping for %i s" % time_to_sleep)
 
         deviceDynamics = self.device_dynamic_dict()
         for device in devices:
