@@ -60,6 +60,7 @@ class ContainerCollectorV1(base.Collector):
         """
         LOG.info("ContainerCollector - Adding Docker infrastructure components to the landscape.")
         now_ts = time.time()
+
         nodes = [x for x in self.swarm_manager.nodes.list() if
                  x.attrs["Status"]["State"] == 'ready']
         for node in nodes:
@@ -226,6 +227,13 @@ class ContainerCollectorV1(base.Collector):
         # manager_address = ContainerCollectorV1.get_connection_string(docker_conf)
         # client = docker.DockerClient(base_url=manager_address, tls=tls_config)
         client = docker.from_env()
+
+        try:
+            if client.swarm.init():
+                LOG.info("Node joined swarm")
+        except docker.errors.APIError:
+            LOG.info("Node already part of swarm")
+
         try:
             return client
         except KeyError as err:
