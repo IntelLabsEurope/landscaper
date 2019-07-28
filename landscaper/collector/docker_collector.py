@@ -67,6 +67,13 @@ class DockerCollectorV2(base.Collector):
         # manager_address = DockerCollectorV2._get_connection_string(docker_conf)
         # client = docker.DockerClient(base_url=manager_address, tls=tls_config)
         client = docker.from_env()
+
+        try:
+            if client.swarm.init():
+                LOG.info("Node joined swarm")
+        except docker.errors.APIError:
+            LOG.info("Node already part of swarm")
+
         try:
             return client
         except KeyError as err:
