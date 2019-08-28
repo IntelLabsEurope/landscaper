@@ -18,7 +18,7 @@ requests.packages.urllib3.disable_warnings()
 
 CONFIG_SECTION_GENERAL = 'general'
 CONFIG_CIMI_URL = "cimi_url"
-CIMI_SEC_HEADERS = {"slipstream-authn-info:internal ADMIN"}
+CIMI_SEC_HEADERS = {"slipstream-authn-info": "internal ADMIN"}
 SSL_VERIFY = False
 
 
@@ -50,7 +50,7 @@ class CimiClient():
         url = self.cimi_url + '/event?$orderby=created:desc$filter=content/state="' + \
             event_type + '"' + date_filter + limit_filter
         res = requests.get(url,
-                           headers={'slipstream-authn-info': 'internal ADMIN'},
+                           headers=CIMI_SEC_HEADERS,
                            verify=SSL_VERIFY)
 
         if res.status_code == 200:
@@ -90,12 +90,14 @@ class CimiClient():
         url = self.cimi_url + '/service-container-metric'
         data = {'container_id': id, 'device_id': device_id,
                 'start_time': start_time}
-        resp = requests.post(url, data, json=True)
+        resp = requests.post(url, data, headers=CIMI_SEC_HEADERS, verify=SSL_VERIFY, json=True)
+        if resp.status_code != 200:
+            LOG.error(resp.json())
         return resp
 
     def update_service_container_metrics(self, id, device_id, end_time):
-        coll = self.get_collection('service-container-metrics')
-        coll = coll['ServiceContainerMetrics']
+        coll = self.get_collection('service-container-metric')
+        coll = coll['serviceContainerMetrics']
         scm_id = None
         for item in coll:
             dev_id = item['device_id']
@@ -106,7 +108,7 @@ class CimiClient():
         if scm_id:
             url = self.cimi_url + '/service-container-metric/' + scm_id
             data = {'end_time': end_time}
-            resp = requests.put(url, data, json=True)
+            resp = requests.put(url, data, headers=CIMI_SEC_HEADERS, verify=SSL_VERIFY, json=True)
             return resp
         else:
             return ""
