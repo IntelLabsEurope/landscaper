@@ -141,10 +141,11 @@ class DockerCollectorV2(base.Collector):
                 if body['Type'] == 'container':
                     # delete the adjoining task
                     uuid = body['id']
-                    end_time = body['time']
+                    end_time = body['timeNano']
                     cimi_device_id = self._get_cimi_device_id()
                     if 'com.docker.swarm.task.id' in body['Actor']['Attributes']:
                         task_id = body['Actor']['Attributes']['com.docker.swarm.task.id']
+
                         self._delete_node(task_id, now_ts)
                     # Update cimi service-container-metrics resource
                     if cimi_device_id:

@@ -13,6 +13,7 @@
 # limitations under the License.
 import requests
 from landscaper.common import LOG
+from datetime import datetime
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
 
@@ -88,27 +89,37 @@ class CimiClient():
 
     def add_service_container_metrics(self, id, device_id, start_time):
         url = self.cimi_url + '/service-container-metric'
-        data = {'container_id': id, 'device_id': device_id,
+        data = {'container_id': id, 'device_id': {'href': 'device/'+device_id},
                 'start_time': start_time}
-        resp = requests.post(url, data, headers=CIMI_SEC_HEADERS, verify=SSL_VERIFY, json=True)
-        if resp.status_code != 200:
+        resp = requests.post(url, headers=CIMI_SEC_HEADERS,
+                             verify=SSL_VERIFY, json=data)
+        if resp.status_code != 201:
             LOG.error(resp.json())
         return resp
 
     def update_service_container_metrics(self, id, device_id, end_time):
         coll = self.get_collection('service-container-metric')
         coll = coll['serviceContainerMetrics']
+        device_id = "device/{0}".format(device_id)
+        end_time = float(end_time) // 1000000000
+        end_time = datetime.utcfromtimestamp(end_time)
+        mlsec = end_time.microsecond
+        json_end_time = end_time.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f{:02d}Z'.format(mlsec))
         scm_id = None
         for item in coll:
-            dev_id = item['device_id']
+            dev_id = item['device_id']['href']
             cont_id = item['container_id']
             if dev_id == device_id and cont_id == id:
                 scm_id = item['id']
                 break
         if scm_id:
-            url = self.cimi_url + '/service-container-metric/' + scm_id
-            data = {'end_time': end_time}
-            resp = requests.put(url, data, headers=CIMI_SEC_HEADERS, verify=SSL_VERIFY, json=True)
-            return resp
+            url = self.cimi_url + '/' + scm_id
+            data = {'stop_time': json_end_time}
+            res = requests.put(
+                url, headers=CIMI_SEC_HEADERS, verify=SSL_VERIFY, json=data)
+            if res.status_code != 200:
+                LOG.error(res.json())
+            return res
         else:
             return ""
