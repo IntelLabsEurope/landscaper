@@ -110,7 +110,7 @@ class CimiPhysicalCollector(base.Collector):
         elif event == 'cimi.device-dynamic.update':
             self.generate_device_dynamic_file(body)
 
-    def generate_files(self, device, dynamic):
+    def generate_files(self, device, dynamic={}):
         """
         Queries the hwloc and cpuinfo methods and writes them to a file
         :param device: CIMI Device object containing hwloc and cpu_info methods
@@ -131,11 +131,13 @@ class CimiPhysicalCollector(base.Collector):
                 LOG.error(
                     "CPU_info data has not been set for this device: " + device_id + ". No CPU_info file will be saved.")
 
-            if dynamic is None:
-                LOG.error(
-                    "Dynamic data has not been set for this device: " + device_id + ". No dynamic file will be saved.")
+            if dynamic:
+                hwloc, hostname = self._parse_hwloc(device, hwloc, dynamic)
+                LOG.info("Dynamic data has been set for this device: " + device_id)
+            else:
+                hwloc, hostname = self._parse_hwloc(device, hwloc)
+                LOG.error("Dynamic data has not been set for this device: " + device_id + ". No dynamic file will be saved.")
 
-            hwloc, hostname = self._parse_hwloc(device, dynamic, hwloc)
             self.device_dict[device_id] = hostname
             # save the dynamic info to file
             if dynamic:
@@ -242,7 +244,7 @@ class CimiPhysicalCollector(base.Collector):
         LOG.error("Response: " + str(res.json()))
         return dict()
 
-    def _parse_hwloc(self, device, dynamic, hwloc_str):
+    def _parse_hwloc(self, device, hwloc_str, dynamic={}):
         doc_root = Et.fromstring(hwloc_str)
         # eg, device/737fe63b-2a34-44fe-9177-3aa6284ba2f5#
         device_id = device["id"][7:]
@@ -260,15 +262,16 @@ class CimiPhysicalCollector(base.Collector):
                 device_id_att["value"] = device_id
                 Et.SubElement(child, "info", device_id_att)
 
-                # add device's ip address to the hwloc file
-                if dynamic.get("ethernetAddress"):
-                    patt = "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
-                    result = re.search(patt, dynamic["ethernetAddress"])
-                    if result.string:
+                fields = ["ethernetAddress", "wifiAddress"]
+                fields_data = [dynamic.get(x) for x in fields if dynamic.get(x)!="None" or None]
+                if len(fields_data) > 0:
+                    IPpatt = "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+                    result = re.search(IPpatt, fields_data[0])
+                    if result:
                         ipaddress = result.string
                     else:
                         ipaddress = self._get_ipaddress(
-                            dynamic["ethernetAddress"])
+                            fields_data[0])
                     ipaddress_att = dict()
                     ipaddress_att["name"] = "ipaddress"
                     ipaddress_att["value"] = ipaddress
